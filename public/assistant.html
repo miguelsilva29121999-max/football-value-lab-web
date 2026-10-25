@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Football Value Lab Web 5.2 · Assistente IA</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assistant.css"></head>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Football Value Lab Web 5.3 · Assistente IA</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assistant.css"></head>
 <body><div class="app">
- <aside class="sidebar"><a class="logo" href="/ai"><span class="mark">V<span>•</span></span><div><strong>FOOTBALL VALUE</strong><small>INTELLIGENCE · WEB V5.2</small></div></a>
+ <aside class="sidebar"><a class="logo" href="/ai"><span class="mark">V<span>•</span></span><div><strong>FOOTBALL VALUE</strong><small>INTELLIGENCE · WEB V5.3</small></div></a>
   <div class="sidetitle">O TEU LABORATÓRIO</div><a class="nav active" href="/ai">✦ &nbsp; Assistente IA</a><a class="nav" href="/">◈ &nbsp; Ferramentas anteriores</a>
   <div class="sidebar-note"><span class="status-dot"></span><span id="api-state">A verificar integração IA...</span><p>As estatísticas são do fornecedor de futebol; a IA interpreta-as e pode pesquisar notícias. Não existe feed live neste momento.</p></div>
  </aside>
@@ -11,7 +11,7 @@
  <label for="filter">Procurar equipa na lista</label><input id="filter" placeholder="Ex.: Benfica, Liverpool, Barcelona" autocomplete="off">
  <label for="fixture">Jogo disponível</label><select id="fixture"><option value="">Seleciona primeiro uma liga</option></select>
  <button id="refresh" class="quiet">↻ Atualizar calendário</button>
- <div id="fixture-preview" class="fixture-summary">Escolhe uma partida para consultar os dados disponíveis.</div>
+ <div id="fixture-preview" class="fixture-summary">Escolhe uma partida para consultar os dados disponíveis.</div><section id="quote-board" class="quote-board" hidden aria-live="polite"></section>
  <label class="check"><input id="research" type="checkbox" checked><span><strong>Pesquisar notícias e contexto na web</strong><small>Lesões, convocados, onzes e alterações recentes quando confirmados. A pesquisa Google usa quota gratuita do Gemini 2.5 Flash; limites sujeitos ao teu projeto.</small></span></label>
  <div class="section-label extra">02 / ODD MANUAL · OPCIONAL</div><label for="market">Mercado a comparar (dos modelados)</label><select id="market"><option value="">Sem mercado escolhido</option></select>
  <label for="price">Odd que viste na tua casa</label><input id="price" placeholder="Ex.: 1,85" inputmode="decimal">
@@ -22,5 +22,5 @@
  <div id="chat" class="chat"><div class="empty-chat"><div class="orb">✦</div><h3>O teu analista está pronto</h3><p>Escolhe um jogo e carrega em <b>Analisar jogo com IA</b>. Podes depois conversar sobre qualquer mercado e introduzir uma odd para a avaliar.</p></div></div>
  <form id="followup" class="compose"><input id="question" type="text" maxlength="1200" placeholder="Pergunta sobre cantos, golos, lesões, estatísticas..." disabled><button id="send" type="submit" disabled>Enviar ↗</button></form>
  </section></div>
- <footer><b>Limitações importantes</b> · Sem feed desportivo em direto; não apresentar estados live como confirmados. As probabilidades históricas não foram calibradas, o resultado não garante uma aposta lucrativa e o melhor mercado pode ser «sem entrada». O Gemini pode ser utilizado gratuitamente dentro dos limites do plano escolhido; sem feed live. Não partilhes a tua chave nem atives faturação para esta versão.</footer>
+ <footer><b>Limitações importantes</b> · Sem feed desportivo em direto; não apresentar estados live como confirmados. As probabilidades históricas não foram calibradas, o resultado não garante uma aposta lucrativa e o melhor mercado pode ser «sem entrada». A seleção para cotar é uma hipótese estatística, não uma entrada validada. O Gemini pode ser utilizado gratuitamente dentro dos limites do plano escolhido; sem feed live. Não partilhes a tua chave nem atives faturação para esta versão.</footer>
  </main></div><script type="module" src="/assistant.js"></script></body></html>

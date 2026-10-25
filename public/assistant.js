@@ -16,12 +16,26 @@ function showFixture(){const search=$('filter').value.trim().toLocaleLowerCase('
  const filtered=fixtures.filter(f=>(f.home+' '+f.away).toLocaleLowerCase('pt-PT').includes(search));for(const f of filtered)addOption(sel,f.id,`${f.date} · ${f.home} — ${f.away}`);
  if(filtered.some(f=>f.id===previous))sel.value=previous;else if(filtered.length===1)sel.value=filtered[0].id;
  selectedFixture();}
-function selectedFixture(){currentFixture=fixtures.find(f=>f.id===$('fixture').value)||null;packet=null;conversation=[];$('market').replaceChildren();addOption($('market'),'','Sem mercado escolhido');$('chat-title').textContent=currentFixture?currentFixture.home+' — '+currentFixture.away:'Relatório do jogo';
+function selectedFixture(){if($('quote-board')){$('quote-board').hidden=true;$('quote-board').replaceChildren();}currentFixture=fixtures.find(f=>f.id===$('fixture').value)||null;packet=null;conversation=[];$('market').replaceChildren();addOption($('market'),'','Sem mercado escolhido');$('chat-title').textContent=currentFixture?currentFixture.home+' — '+currentFixture.away:'Relatório do jogo';
  $('fixture-preview').textContent=currentFixture?`Jogo: ${currentFixture.home} vs. ${currentFixture.away}\nData: ${currentFixture.date}\nHora: ${currentFixture.time||'Não confirmada'}\nFonte: ${currentFixture.source||'calendário'}`:'Seleciona um jogo. Não é possível confirmar que o jogo ainda não começou sem uma hora válida.';
  $('question').disabled=true;$('send').disabled=true;}
 async function loadFixtures(){const l=$('league').value;$('fixture').replaceChildren();addOption($('fixture'),'','A carregar...');fixtures=[];packet=null;
  if(!l){showFixture();return;}statusNote('');try{const data=await fetchJSON('/api/fixtures?league='+encodeURIComponent(l));fixtures=data.fixtures||[];showFixture();if(!fixtures.length)statusNote('Esta fonte não tem jogos futuros listados nesta liga. Tenta outra competição.');}catch(e){showFixture();statusNote('Erro a recolher jogos: '+e.message);}}
-async function preview(){const id=currentFixture?.id;if(!id)return;try{const b=await post('/api/ai/preview',{league:$('league').value,fixtureId:id});if(id!==currentFixture?.id)return;packet=b.packet;const m=$('market');m.replaceChildren();addOption(m,'','Sem mercado escolhido');for(const c of packet.candidateMarkets||[])addOption(m,c.id,`${c.name} · odd mínima experimental ${Number(c.thresholdOddExperimental).toFixed(2)}`);
+function showMarketsToQuote(packet){
+ const board=$('quote-board');board.replaceChildren();const arr=(packet.candidateMarkets||[]).slice(0,3);
+ board.hidden=false;
+ if(packet.fixture?.status==='JOGO_JA_PODE_TER_COMECADO'){const warning=document.createElement('p');warning.textContent='A hora indicada sugere que o jogo pode já ter começado. Este modelo só é pré-jogo; não apresenta mercados para entrada em direto.';board.appendChild(warning);return;}
+ const heading=document.createElement('strong');heading.className='quote-heading';heading.textContent=arr.length?'MERCADOS PARA COTAR — SEM ODD AINDA':'DADOS INSUFICIENTES PARA ESCOLHER UM MERCADO';board.appendChild(heading);
+ if(!arr.length){const note=document.createElement('p');note.textContent='Não temos histórico modelável suficiente para este jogo. A IA pode analisar o contexto, mas não deve inventar uma seleção.';board.appendChild(note);return;}
+ arr.forEach((c,i)=>{const item=document.createElement('button');item.type='button';item.className='quote-item';
+  const title=document.createElement('strong');title.textContent=(i===0?'Principal · ':'Alternativa · ')+c.name;
+  const details=document.createElement('small');details.textContent=`Prob. modelo ${(c.modelProbability*100).toFixed(0)}% · Cenário baixo ${(c.scenarioLow*100).toFixed(0)}% · Odd mínima teórica ${Number(c.thresholdOddExperimental).toFixed(2).replace('.',',')}`;
+  item.append(title,details);item.addEventListener('click',()=>{$('market').value=c.id;$('price').focus();});board.appendChild(item);
+ });
+ const foot=document.createElement('p');foot.textContent='Clica num mercado e introduz a odd REAL da tua casa. Os valores são hipóteses matemáticas ainda não validadas.';board.appendChild(foot);
+}
+
+async function preview(){const id=currentFixture?.id;if(!id)return;try{const b=await post('/api/ai/preview',{league:$('league').value,fixtureId:id});if(id!==currentFixture?.id)return;packet=b.packet;showMarketsToQuote(packet);const m=$('market');m.replaceChildren();addOption(m,'','Sem mercado escolhido');for(const c of packet.candidateMarkets||[])addOption(m,c.id,`${c.name} · odd mínima experimental ${Number(c.thresholdOddExperimental).toFixed(2)}`);
  const ready=packet.modelReady?'Modelo numérico: disponível (não validado).':'Modelo numérico: dados insuficientes.';
  $('fixture-preview').textContent=`${packet.fixture.home} vs. ${packet.fixture.away}\n${packet.competition} · ${packet.fixture.date}\n${ready}\nHistórico liga: ${packet.historicalMatchesInLeague} jogos\nEstado: ${packet.fixture.status}\nSem feed em direto.`;
  }catch(e){statusNote(e.message);}}
