@@ -40,6 +40,13 @@ export async function handleRequest(req,res){
    const match=await createMatchContext({league:String(body.league||''),fixtureId:String(body.fixtureId||'')});
    return send(res,200,{packet:match.packet});
   }
+  if(req.method==='POST'&&url.pathname==='/api/ai/validate'){
+   const body=await readJson(req);
+   const match=await createMatchContext({league:String(body.league||''),fixtureId:String(body.fixtureId||'')});
+   const manual=buildManualOdd(match,String(body.optionId||''),body.odd);
+   if(!manual)return send(res,400,{error:'Seleciona mercado e introduz uma odd decimal.'});
+   return send(res,200,{manual,context:match.packet.fixture});
+  }
   if(req.method==='POST'&&url.pathname==='/api/ai/chat'){
    if(!geminiKey)return send(res,409,{error:'Gemini ainda não configurado. Adiciona GEMINI_API_KEY nas variáveis de ambiente da Vercel.'});
    if(aiBusy)return send(res,429,{error:'Já existe uma análise IA em curso. Aguarda o resultado antes de pedir outra.'});
