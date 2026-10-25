@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Football Value Lab Web 5.4 · Assistente IA</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assistant.css"></head>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Football Value Lab Web 5.5 · Assistente IA</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assistant.css"></head>
 <body><div class="app">
- <aside class="sidebar"><a class="logo" href="/ai"><span class="mark">V<span>•</span></span><div><strong>FOOTBALL VALUE</strong><small>INTELLIGENCE · WEB V5.4</small></div></a>
+ <aside class="sidebar"><a class="logo" href="/ai"><span class="mark">V<span>•</span></span><div><strong>FOOTBALL VALUE</strong><small>INTELLIGENCE · WEB V5.5</small></div></a>
   <div class="sidetitle">O TEU LABORATÓRIO</div><a class="nav active" href="/ai">✦ &nbsp; Assistente IA</a><a class="nav" href="/">◈ &nbsp; Ferramentas anteriores</a>
   <div class="sidebar-note"><span class="status-dot"></span><span id="api-state">A verificar integração IA...</span><p>As estatísticas são do fornecedor de futebol; a IA interpreta-as e pode pesquisar notícias. Não existe feed live neste momento.</p></div>
  </aside>
  <main><header class="topbar"><span>ANÁLISE FUTEBOLÍSTICA &nbsp; / &nbsp; ASSISTENTE IA</span><div id="today"></div></header>
- <section class="intro"><span class="eyebrow">NOVA FORMA DE ANALISAR</span><h1>Escolhe o jogo.<br><em>A IA investiga.</em></h1><p>Uma seleção principal por jogo. Introduz a odd da tua casa para saber se o preço justifica sequer considerar a entrada.</p><div class="pill-row"><span>📊 Dados históricos</span><span>🌐 Notícias por pesquisa</span><span>🧠 Gemini IA · plano gratuito</span></div></section>
+ <section class="intro"><span class="eyebrow">NOVA FORMA DE ANALISAR</span><h1>Escolhe o jogo.<br><em>A IA investiga.</em></h1><p>Mercados que merecem comparação, sem linhas de retorno irrisório. A aposta só pode ser avaliada depois de introduzires uma odd real.</p><div class="pill-row"><span>📊 Dados históricos</span><span>🌐 Notícias por pesquisa</span><span>🧠 Gemini IA · plano gratuito</span></div></section>
  <div class="content-grid"><section class="selection-panel"><div class="section-label">01 / ESCOLHER A PARTIDA</div><label for="league">Competição</label><select id="league"><option value="">A carregar ligas...</option></select>
  <label for="filter">Procurar equipa na lista</label><input id="filter" placeholder="Ex.: Benfica, Liverpool, Barcelona" autocomplete="off">
  <label for="fixture">Jogo disponível</label><select id="fixture"><option value="">Seleciona primeiro uma liga</option></select>
@@ -15,7 +15,7 @@
  <label class="check"><input id="research" type="checkbox" checked><span><strong>Pesquisar notícias e contexto na web</strong><small>Lesões, convocados, onzes e alterações recentes quando confirmados. Disponibilidade sujeita à quota e ao modelo configurado; não garante notícias atualizadas.</small></span></label>
  <div class="section-label extra">02 / ODD MANUAL · OPCIONAL</div><label for="market">Mercado a comparar (dos modelados)</label><select id="market"><option value="">Sem mercado escolhido</option></select>
  <label for="price">Odd que viste na tua casa</label><input id="price" placeholder="Ex.: 1,85" inputmode="decimal">
- <p class="muted small">Podes analisar primeiro e introduzir a odd depois. A odd manual não é verificada automaticamente.</p>
+ <p class="muted small">A odd mínima apresentada é uma exigência MATEMÁTICA do modelo, não uma previsão do preço de mercado. Se a casa oferecer menos, não entrar. A odd manual não é verificada automaticamente.</p>
  <button id="check-price" class="quiet check-price" type="button">✓ Validar odd (sem gastar Gemini)</button><div id="price-verdict" class="price-verdict" hidden aria-live="polite"></div>
  <button id="analyze" class="primary">✦ Encontrar a seleção principal</button><p id="problem" class="error" hidden></p>
  </section>
