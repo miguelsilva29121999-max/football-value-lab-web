@@ -24,7 +24,7 @@ async function loadFixtures(){const l=$('league').value;$('fixture').replaceChil
 function showMarketsToQuote(packet){
  const board=$('quote-board');board.replaceChildren();const arr=(packet.candidateMarkets||[]).slice(0,3);
  board.hidden=false;
- if(packet.fixture?.status==='JOGO_JA_PODE_TER_COMECADO'){const warning=document.createElement('p');warning.textContent='A hora indicada sugere que o jogo pode já ter começado. Este modelo só é pré-jogo; não apresenta mercados para entrada em direto.';board.appendChild(warning);return;}
+ if(['JOGO_JA_PODE_TER_COMECADO','INICIO_HOJE_NAO_CONFIRMADO'].includes(packet.fixture?.status)){const warning=document.createElement('p');warning.textContent='Partida de hoje sem hora de início verificável ou já possivelmente iniciada. O site não tem feed live: não apresenta aqui entradas pré-jogo sem confirmar que a partida ainda não começou.';board.appendChild(warning);return;}
  const heading=document.createElement('strong');heading.className='quote-heading';heading.textContent=arr.length?'MERCADOS NÃO TRIVIAIS — SEM ENTRADA AINDA':'SEM MERCADO FUNDAMENTADO';board.appendChild(heading);
  if(!arr.length){const note=document.createElement('p');const why=(packet.modelLimitations||[]).slice(0,3).join(' · ');note.textContent='Sem seleção estatística para este jogo. '+(why||'Histórico insuficiente para calcular os mercados disponíveis.')+' A IA pode analisar o contexto, mas não deve inventar uma aposta.';board.appendChild(note);return;}
  arr.forEach((c,i)=>{const item=document.createElement('button');item.type='button';item.className='quote-item';
