@@ -52,7 +52,7 @@ async function validateCurrentPrice(){
  if(!packet)await preview();
  const optionId=$('market').value,odd=$('price').value.trim();
  if(!optionId||!odd){statusNote('Seleciona o mercado e introduz a odd real da tua casa.');return;}
- try{statusNote('');const r=await post('/api/ai/validate',{league:$('league').value,fixtureId:currentFixture.id,optionId,odd});
+ try{statusNote('');const r=await post('/api/ai/preview',{league:$('league').value,fixtureId:currentFixture.id,optionId,odd});
   const m=r.manual,v=$('price-verdict');v.replaceChildren();v.hidden=false;
   const title=document.createElement('strong');title.textContent=m.decision==='POTENCIAL'?'POSSÍVEL PREÇO INTERESSANTE — NÃO VALIDADO':'OBSERVAR — NÃO ENTRAR';
   const info=document.createElement('p');const format=n=>Number(n).toFixed(2).replace('.',',');
