@@ -22,9 +22,6 @@
     },
     "api/stats-radar.js": {
       "maxDuration": 120
-    },
-    "api/ai/validate.js": {
-      "maxDuration": 60
     }
   }
 }
