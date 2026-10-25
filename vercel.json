@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/ai",
+      "destination": "/assistant.html"
+    }
+  ],
+  "functions": {
+    "api/ai/chat.js": {
+      "maxDuration": 120
+    },
+    "api/ai/preview.js": {
+      "maxDuration": 60
+    },
+    "api/market-lab.js": {
+      "maxDuration": 120
+    },
+    "api/radar.js": {
+      "maxDuration": 120
+    },
+    "api/stats-radar.js": {
+      "maxDuration": 120
+    }
+  }
+}

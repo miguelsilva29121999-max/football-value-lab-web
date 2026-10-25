@@ -1,0 +1,41 @@
+const $=id=>document.getElementById(id);
+let leagues={},fixtures=[],packet=null,currentFixture=null,conversation=[],running=false;
+const statusNote=text=>{$('problem').textContent=text;$('problem').hidden=!text;};
+const requestWithAccess=async(url,init={})=>{
+ const send=()=>{const code=sessionStorage.getItem('fvl_site_code');const headers=new Headers(init.headers||{});if(code)headers.set('x-fvl-access-code',code);return fetch(url,{...init,headers});};
+ let r=await send();
+ if(r.status===401){const supplied=window.prompt('Football Value Lab — código de acesso privado (configurado na Vercel):');
+  if(!supplied)throw Error('Acesso ao site cancelado.');sessionStorage.setItem('fvl_site_code',supplied);r=await send();
+  if(r.status===401)sessionStorage.removeItem('fvl_site_code');}
+ return r;
+};
+const fetchJSON=async(url,init)=>{const r=await requestWithAccess(url,init);const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b.error||`Erro HTTP ${r.status}`);return b;};
+const post=(path,data)=>fetchJSON(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
+function addOption(select,v,label){const opt=document.createElement('option');opt.value=v;opt.textContent=label;select.appendChild(opt);}
+function showFixture(){const search=$('filter').value.trim().toLocaleLowerCase('pt-PT'),sel=$('fixture'),previous=sel.value;sel.replaceChildren();addOption(sel,'','Seleciona uma partida');
+ const filtered=fixtures.filter(f=>(f.home+' '+f.away).toLocaleLowerCase('pt-PT').includes(search));for(const f of filtered)addOption(sel,f.id,`${f.date} · ${f.home} — ${f.away}`);
+ if(filtered.some(f=>f.id===previous))sel.value=previous;else if(filtered.length===1)sel.value=filtered[0].id;
+ selectedFixture();}
+function selectedFixture(){currentFixture=fixtures.find(f=>f.id===$('fixture').value)||null;packet=null;conversation=[];$('market').replaceChildren();addOption($('market'),'','Sem mercado escolhido');$('chat-title').textContent=currentFixture?currentFixture.home+' — '+currentFixture.away:'Relatório do jogo';
+ $('fixture-preview').textContent=currentFixture?`Jogo: ${currentFixture.home} vs. ${currentFixture.away}\nData: ${currentFixture.date}\nHora: ${currentFixture.time||'Não confirmada'}\nFonte: ${currentFixture.source||'calendário'}`:'Seleciona um jogo. Não é possível confirmar que o jogo ainda não começou sem uma hora válida.';
+ $('question').disabled=true;$('send').disabled=true;}
+async function loadFixtures(){const l=$('league').value;$('fixture').replaceChildren();addOption($('fixture'),'','A carregar...');fixtures=[];packet=null;
+ if(!l){showFixture();return;}statusNote('');try{const data=await fetchJSON('/api/fixtures?league='+encodeURIComponent(l));fixtures=data.fixtures||[];showFixture();if(!fixtures.length)statusNote('Esta fonte não tem jogos futuros listados nesta liga. Tenta outra competição.');}catch(e){showFixture();statusNote('Erro a recolher jogos: '+e.message);}}
+async function preview(){const id=currentFixture?.id;if(!id)return;try{const b=await post('/api/ai/preview',{league:$('league').value,fixtureId:id});if(id!==currentFixture?.id)return;packet=b.packet;const m=$('market');m.replaceChildren();addOption(m,'','Sem mercado escolhido');for(const c of packet.candidateMarkets||[])addOption(m,c.id,`${c.name} · odd mínima experimental ${Number(c.thresholdOddExperimental).toFixed(2)}`);
+ const ready=packet.modelReady?'Modelo numérico: disponível (não validado).':'Modelo numérico: dados insuficientes.';
+ $('fixture-preview').textContent=`${packet.fixture.home} vs. ${packet.fixture.away}\n${packet.competition} · ${packet.fixture.date}\n${ready}\nHistórico liga: ${packet.historicalMatchesInLeague} jogos\nEstado: ${packet.fixture.status}\nSem feed em direto.`;
+ }catch(e){statusNote(e.message);}}
+function addMessage(role,text,links=[]){const empty=$('chat').querySelector('.empty-chat');if(empty)empty.remove();const elem=document.createElement('div');elem.className='bubble '+role;const who=document.createElement('div');who.className='who';who.textContent=role==='assistant'?'✦ ASSISTENTE IA':'A TUA PERGUNTA';const body=document.createElement('div');body.className='body';body.textContent=text;elem.append(who,body);
+ if(links.length){const wrap=document.createElement('div');wrap.className='sources';wrap.textContent='Fontes encontradas:';for(const l of links){if(!/^https:\/\//.test(l.url||''))continue;const a=document.createElement('a');a.href=l.url;a.rel='noopener noreferrer';a.target='_blank';a.textContent=l.title||l.url;wrap.appendChild(a);}elem.appendChild(wrap);} $('chat').append(elem);elem.scrollIntoView({block:'end',behavior:'smooth'});return elem;}
+function setBusy(v){running=v;$('analyze').disabled=v;$('send').disabled=v||!conversation.length;$('question').disabled=v||!conversation.length;}
+async function ask(question='',reset=false){if(running||!currentFixture)return;if($('price').value.trim()&&!$('market').value){statusNote('Para validar uma odd, escolhe primeiro o mercado correspondente. Ou apaga a odd para pedir só a análise.');return;}const selected=currentFixture.id;setBusy(true);statusNote('');const old=$('chat').querySelector('.loading');if(old)old.remove();if(reset){$('chat').replaceChildren();conversation=[];}else if(question){addMessage('user',question);}const spinner=document.createElement('div');spinner.className='loading';spinner.textContent='A analisar dados, consultar fontes e preparar o relatório…';$('chat').append(spinner);
+ try{const r=await post('/api/ai/chat',{league:$('league').value,fixtureId:selected,question,history:conversation,searchWeb:$('research').checked&&(reset||/not[ií]ci|les[aã]o|convocad|onze|meteorolog|tempo|atualiz|hoje|[úu]ltima/i.test(question)),optionId:$('market').value||null,odd:$('price').value.trim()||null});spinner.remove();addMessage('assistant',r.text,r.links);if(question)conversation.push({role:'user',content:question});conversation.push({role:'assistant',content:r.text.slice(0,1400)});conversation=conversation.slice(-6);$('question').disabled=false;$('send').disabled=false;}
+ catch(e){spinner.remove();statusNote(e.message);addMessage('assistant','Não foi possível completar a análise: '+e.message);}
+ finally{setBusy(false);$('question').disabled=!conversation.length;$('send').disabled=!conversation.length;}
+}
+$('league').addEventListener('change',loadFixtures);$('filter').addEventListener('input',showFixture);$('fixture').addEventListener('change',()=>{selectedFixture();preview();});$('refresh').addEventListener('click',loadFixtures);
+$('analyze').addEventListener('click',async()=>{if(!currentFixture){statusNote('Seleciona primeiro uma partida.');return;}if(!packet)await preview();await ask('',true);});
+$('followup').addEventListener('submit',e=>{e.preventDefault();const q=$('question').value.trim();if(!q)return;$('question').value='';ask(q);});
+(async()=>{try{const s=await fetchJSON('/api/status');leagues=s.leagues||{};const sel=$('league');sel.replaceChildren();addOption(sel,'','Seleciona uma competição');for(const [code,l] of Object.entries(leagues))addOption(sel,code,`${l.country} · ${l.name}`);
+ const ai=await fetchJSON('/api/ai/status');$('api-state').textContent=ai.configured?`Gemini grátis configurado · ${ai.model}`:'Gemini sem chave · configurar GEMINI_API_KEY na Vercel';$('today').textContent=new Date().toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
+ $('league').value='P1';await loadFixtures();}catch(e){statusNote('Não foi possível inicializar: '+e.message);}})();
