@@ -24,5 +24,5 @@ test('modelo demasiado discrepante do preço exige revisão',()=>{
 });
 test('UI tem verificação de odd independente do Gemini e versão 5.4',()=>{
  const html=fs.readFileSync(new URL('../public/assistant.html',import.meta.url),'utf8'),js=fs.readFileSync(new URL('../public/assistant.js',import.meta.url),'utf8'),server=fs.readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
- assert.match(html,/id="check-price"/);assert.match(js,/api\/ai\/validate/);assert.match(server,/api\/ai\/validate/);assert.match(html,/Web 5.4/);
+ assert.match(html,/id="check-price"/);assert.match(js,/api\/ai\/preview/);assert.match(server,/api\/ai\/preview/);assert.match(html,/Web 5.4/);
 });
