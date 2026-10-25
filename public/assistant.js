@@ -26,7 +26,7 @@ function showMarketsToQuote(packet){
  board.hidden=false;
  if(packet.fixture?.status==='JOGO_JA_PODE_TER_COMECADO'){const warning=document.createElement('p');warning.textContent='A hora indicada sugere que o jogo pode já ter começado. Este modelo só é pré-jogo; não apresenta mercados para entrada em direto.';board.appendChild(warning);return;}
  const heading=document.createElement('strong');heading.className='quote-heading';heading.textContent=arr.length?'MERCADOS PARA COTAR — SEM ODD AINDA':'DADOS INSUFICIENTES PARA ESCOLHER UM MERCADO';board.appendChild(heading);
- if(!arr.length){const note=document.createElement('p');note.textContent='Não temos histórico modelável suficiente para este jogo. A IA pode analisar o contexto, mas não deve inventar uma seleção.';board.appendChild(note);return;}
+ if(!arr.length){const note=document.createElement('p');const why=(packet.modelLimitations||[]).slice(0,3).join(' · ');note.textContent='Sem seleção estatística para este jogo. '+(why||'Histórico insuficiente para calcular os mercados disponíveis.')+' A IA pode analisar o contexto, mas não deve inventar uma aposta.';board.appendChild(note);return;}
  arr.forEach((c,i)=>{const item=document.createElement('button');item.type='button';item.className='quote-item';
   const title=document.createElement('strong');title.textContent=(i===0?'Principal · ':'Alternativa · ')+c.name;
   const details=document.createElement('small');details.textContent=`Prob. modelo ${(c.modelProbability*100).toFixed(0)}% · Cenário baixo ${(c.scenarioLow*100).toFixed(0)}% · Odd mínima teórica ${Number(c.thresholdOddExperimental).toFixed(2).replace('.',',')}`;
@@ -36,7 +36,7 @@ function showMarketsToQuote(packet){
 }
 
 async function preview(){const id=currentFixture?.id;if(!id)return;try{const b=await post('/api/ai/preview',{league:$('league').value,fixtureId:id});if(id!==currentFixture?.id)return;packet=b.packet;showMarketsToQuote(packet);const m=$('market');m.replaceChildren();addOption(m,'','Sem mercado escolhido');for(const c of packet.candidateMarkets||[])addOption(m,c.id,`${c.name} · odd mínima experimental ${Number(c.thresholdOddExperimental).toFixed(2)}`);
- const ready=packet.modelReady?'Modelo numérico: disponível (não validado).':'Modelo numérico: dados insuficientes.';
+ const details=packet.quality?` · Jogos encontrados: ${packet.quality.homeGames??0} casa / ${packet.quality.awayGames??0} fora; no recorte: ${packet.quality.homeVenue??0} em casa / ${packet.quality.awayVenue??0} fora`:'';const ready=packet.modelReady?'Modelo numérico: disponível (não validado).':'Modelo numérico indisponível'+details+'; '+(packet.modelLimitations||[]).join(' · ');
  $('fixture-preview').textContent=`${packet.fixture.home} vs. ${packet.fixture.away}\n${packet.competition} · ${packet.fixture.date}\n${ready}\nHistórico liga: ${packet.historicalMatchesInLeague} jogos\nEstado: ${packet.fixture.status}\nSem feed em direto.`;
  }catch(e){statusNote(e.message);}}
 function addMessage(role,text,links=[]){const empty=$('chat').querySelector('.empty-chat');if(empty)empty.remove();const elem=document.createElement('div');elem.className='bubble '+role;const who=document.createElement('div');who.className='who';who.textContent=role==='assistant'?'✦ ASSISTENTE IA':'A TUA PERGUNTA';const body=document.createElement('div');body.className='body';body.textContent=text;elem.append(who,body);
