@@ -22,10 +22,29 @@ function selectedFixture(){if($('quote-board')){$('quote-board').hidden=true;$('
  $('question').disabled=true;$('send').disabled=true;}
 async function loadFixtures(){const l=$('league').value;$('fixture').replaceChildren();addOption($('fixture'),'','A carregar...');fixtures=[];packet=null;
  if(!l){showFixture();return;}statusNote('');try{const data=await fetchJSON('/api/fixtures?league='+encodeURIComponent(l));fixtures=data.fixtures||[];showFixture();if(!fixtures.length)statusNote('Esta fonte não tem jogos futuros listados nesta liga. Tenta outra competição.');}catch(e){showFixture();statusNote('Erro a recolher jogos: '+e.message);}}
+
+function appendAvailableHistory(board,packet){
+ const h=packet.historySummary;if(!h)return;
+ const section=document.createElement('section');section.className='history-available';
+ const heading=document.createElement('strong');heading.textContent=h.home.leagueGames&&h.away.leagueGames?'ESTATÍSTICAS DISPONÍVEIS — PRIMEIRA LIGA':'COBERTURA DE ESTATÍSTICAS';section.append(heading);
+ const intro=document.createElement('p');intro.textContent='Histórico da competição: '+h.totalLeagueGames+' jogos · '+h.home.team+': '+h.home.leagueGames+' jogos · '+h.away.team+': '+h.away.leagueGames+' jogos. Recortes anteriores à partida; não são todas as competições.';section.append(intro);
+ const display=v=>v?.value===null||v?.value===undefined?'sem dados':Number(v.value).toFixed(2).replace('.',',')+' ('+v.coverage+'/'+v.total+' jogos)';
+ for(const [side,team] of [['Casa',h.home],['Fora',h.away]]){
+  const sub=document.createElement('div');sub.className='history-team';
+  const name=document.createElement('b');name.textContent=team.team+' · '+side+' · últimos '+team.lastFive.games.length+' da liga';sub.append(name);
+  const avg=team.lastFive.averages;
+  const numbers=document.createElement('p');numbers.textContent='Médias: golos marcados '+display(avg.scored)+' · sofridos '+display(avg.conceded)+' · cantos '+display(avg.corners)+' · remates '+display(avg.shots)+' · remates à baliza '+display(avg.shotsOnTarget);sub.append(numbers);
+  const recent=document.createElement('p');recent.textContent=team.lastFive.games.map(m=>m.date+' '+m.home+' '+m.hg+'–'+m.ag+' '+m.away).join(' | ')||'Sem resultados da liga neste recorte';sub.append(recent);
+  const venue=document.createElement('p');venue.textContent='No respetivo estádio/fora: '+team.lastFiveAtVenue.games.length+' jogos anteriores; golos marcados '+display(team.lastFiveAtVenue.averages.scored)+', sofridos '+display(team.lastFiveAtVenue.averages.conceded);sub.append(venue);
+  section.append(sub);
+ }
+ board.append(section);
+}
 function showMarketsToQuote(packet){
  const board=$('quote-board');board.replaceChildren();const arr=(packet.candidateMarkets||[]).slice(0,8);
  board.hidden=false;
- if(['JOGO_JA_PODE_TER_COMECADO','INICIO_HOJE_NAO_CONFIRMADO'].includes(packet.fixture?.status)){const warning=document.createElement('p');warning.textContent='Partida de hoje sem hora de início verificável ou já possivelmente iniciada. O site não tem feed live: não apresenta aqui entradas pré-jogo sem confirmar que a partida ainda não começou.';board.appendChild(warning);return;}
+ appendAvailableHistory(board,packet);
+ if(['JOGO_JA_PODE_TER_COMECADO','INICIO_HOJE_NAO_CONFIRMADO'].includes(packet.fixture?.status)){const warning=document.createElement('p');warning.className='kickoff-limitation';warning.textContent='O histórico acima ESTÁ DISPONÍVEL. Apenas as sugestões de apostas pré-jogo estão bloqueadas: a hora de início não foi confirmada pela fonte e não existe feed live. Não significa falta de estatísticas.';board.appendChild(warning);return;}
  const heading=document.createElement('strong');heading.className='quote-heading';heading.textContent=arr.length?'MERCADOS NÃO TRIVIAIS — SEM ENTRADA AINDA':'SEM MERCADO FUNDAMENTADO';board.appendChild(heading);
  if(!arr.length){const note=document.createElement('p');const why=(packet.modelLimitations||[]).slice(0,3).join(' · ');note.textContent='Sem seleção estatística para este jogo. '+(why||'Histórico insuficiente para calcular os mercados disponíveis.')+' A IA pode analisar o contexto, mas não deve inventar uma aposta.';board.appendChild(note);return;}
 
