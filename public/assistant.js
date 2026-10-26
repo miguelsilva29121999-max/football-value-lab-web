@@ -55,12 +55,14 @@ async function compareQuotedMarkets(){
   const payload=await post('/api/ai/preview',{league:$('league').value,fixtureId:currentFixture.id,offers:entries});
   result.replaceChildren();
   const title=document.createElement('strong');
-  title.textContent=payload.bestCandidate?'MELHOR PREÇO EXPERIMENTAL — NÃO VALIDADO':'NENHUMA ENTRADA COM ESTAS ODDS';
+  title.textContent=payload.bestCandidate?'PREÇO EXPERIMENTALMENTE FAVORÁVEL — NÃO VALIDADO':payload.bestTheoreticalInReview?'ODD SUPERA O MÍNIMO — PREVISÃO EM REVISÃO':'NENHUMA ENTRADA COM ESTAS ODDS';
   result.append(title);
   for(const item of payload.offers){
    const line=document.createElement('p');
-   const state=item.decision==='POTENCIAL'?'POSSÍVEL PREÇO (EXPERIMENTAL)':'NÃO ENTRAR';
-   line.textContent=state+' · '+item.market+' · Casa '+Number(item.odd).toFixed(2).replace('.',',')+' · Exigida '+Number(item.estimatedMinimumOdd).toFixed(2).replace('.',',')+' · EV estimado '+(item.estimatedEv*100).toFixed(1).replace('.',',')+'%';
+   const state=item.decision==='POTENCIAL'?'PREÇO EXPERIMENTALMENTE FAVORÁVEL':item.decision==='REVER_MODELO'?'PREÇO PASSA, MODELO EM REVISÃO — NÃO ENTRAR':'NÃO ENTRAR';
+   const fmt=n=>Number(n).toFixed(2).replace('.',',');
+   const pct=n=>(Number(n)*100).toFixed(1).replace('.',',')+'%';
+   line.textContent=state+' · '+item.market+' · Casa '+fmt(item.odd)+' · Mínimo do modelo '+fmt(item.estimatedMinimumOdd)+' · Preço: '+(item.pricePassesMinimum?'PASSA':'NÃO PASSA')+' · Prob. modelo '+pct(item.modelProbability)+' / implícita '+pct(item.marketImpliedProbability)+' · EV central '+pct(item.estimatedEv)+' / cenário adverso '+pct(item.estimatedEvLow)+'. MOTIVO: '+item.reason;
    result.append(line);
   }
   const note=document.createElement('p');note.textContent=payload.notice;result.append(note);
@@ -88,9 +90,9 @@ async function validateCurrentPrice(){
  if(!optionId||!odd){statusNote('Seleciona o mercado e introduz a odd real da tua casa.');return;}
  try{statusNote('');const r=await post('/api/ai/preview',{league:$('league').value,fixtureId:currentFixture.id,optionId,odd});
   const m=r.manual,v=$('price-verdict');v.replaceChildren();v.hidden=false;
-  const title=document.createElement('strong');title.textContent=m.decision==='POTENCIAL'?'POSSÍVEL PREÇO INTERESSANTE — NÃO VALIDADO':'OBSERVAR — NÃO ENTRAR';
-  const info=document.createElement('p');const format=n=>Number(n).toFixed(2).replace('.',',');
-  info.textContent=`${m.market} · Odd da casa ${format(m.odd)} · Odd exigida pelo modelo ${format(m.estimatedMinimumOdd)} · Prob. implícita ${Math.round(m.marketImpliedProbability*100)}% · Modelo ${Math.round(m.modelProbability*100)}%. ${m.reason}`;
+  const title=document.createElement('strong');title.textContent=m.decision==='POTENCIAL'?'PREÇO PASSA — PREVISÃO NÃO VALIDADA':m.decision==='REVER_MODELO'?'ODD PASSA, MAS MODELO EM REVISÃO — NÃO ENTRAR':'OBSERVAR — NÃO ENTRAR';
+  const info=document.createElement('p');const format=n=>Number(n).toFixed(2).replace('.',',');const pct=n=>(Number(n)*100).toFixed(1).replace('.',',')+'%';
+  info.textContent=`${m.market} · Odd real ${format(m.odd)} · Mínimo do modelo ${format(m.estimatedMinimumOdd)} · Critério de preço: ${m.pricePassesMinimum?'PASSA':'NÃO PASSA'} · Prob. implícita ${pct(m.marketImpliedProbability)} · Modelo ${pct(m.modelProbability)} · EV central ${pct(m.estimatedEv)} · EV cenário adverso ${pct(m.estimatedEvLow)}. ${m.reason}`;
   v.dataset.decision=m.decision;v.append(title,info);
  }catch(e){statusNote('Não foi possível validar a odd: '+e.message);}
 }
