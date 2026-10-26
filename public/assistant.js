@@ -1,5 +1,6 @@
 const $=id=>document.getElementById(id);
 let leagues={},fixtures=[],packet=null,currentFixture=null,conversation=[],running=false;
+let priceDrafts=new Map();
 const statusNote=text=>{$('problem').textContent=text;$('problem').hidden=!text;};
 const requestWithAccess=async(url,init={})=>{
  const send=()=>{const code=sessionStorage.getItem('fvl_site_code');const headers=new Headers(init.headers||{});if(code)headers.set('x-fvl-access-code',code);return fetch(url,{...init,headers});};
@@ -16,25 +17,58 @@ function showFixture(){const search=$('filter').value.trim().toLocaleLowerCase('
  const filtered=fixtures.filter(f=>(f.home+' '+f.away).toLocaleLowerCase('pt-PT').includes(search));for(const f of filtered)addOption(sel,f.id,`${f.date} · ${f.home} — ${f.away}`);
  if(filtered.some(f=>f.id===previous))sel.value=previous;else if(filtered.length===1)sel.value=filtered[0].id;
  selectedFixture();}
-function selectedFixture(){if($('quote-board')){$('quote-board').hidden=true;$('quote-board').replaceChildren();}currentFixture=fixtures.find(f=>f.id===$('fixture').value)||null;packet=null;conversation=[];$('market').replaceChildren();addOption($('market'),'','Sem mercado escolhido');$('price-verdict').hidden=true;$('price-verdict').replaceChildren();$('chat-title').textContent=currentFixture?currentFixture.home+' — '+currentFixture.away:'Relatório do jogo';
+function selectedFixture(){if($('quote-board')){$('quote-board').hidden=true;$('quote-board').replaceChildren();}currentFixture=fixtures.find(f=>f.id===$('fixture').value)||null;packet=null;conversation=[];priceDrafts=new Map();$('market').replaceChildren();addOption($('market'),'','Sem mercado escolhido');$('price-verdict').hidden=true;$('price-verdict').replaceChildren();$('chat-title').textContent=currentFixture?currentFixture.home+' — '+currentFixture.away:'Relatório do jogo';
  $('fixture-preview').textContent=currentFixture?`Jogo: ${currentFixture.home} vs. ${currentFixture.away}\nData: ${currentFixture.date}\nHora: ${currentFixture.time||'Não confirmada'}\nFonte: ${currentFixture.source||'calendário'}`:'Seleciona um jogo. Não é possível confirmar que o jogo ainda não começou sem uma hora válida.';
  $('question').disabled=true;$('send').disabled=true;}
 async function loadFixtures(){const l=$('league').value;$('fixture').replaceChildren();addOption($('fixture'),'','A carregar...');fixtures=[];packet=null;
  if(!l){showFixture();return;}statusNote('');try{const data=await fetchJSON('/api/fixtures?league='+encodeURIComponent(l));fixtures=data.fixtures||[];showFixture();if(!fixtures.length)statusNote('Esta fonte não tem jogos futuros listados nesta liga. Tenta outra competição.');}catch(e){showFixture();statusNote('Erro a recolher jogos: '+e.message);}}
 function showMarketsToQuote(packet){
- const board=$('quote-board');board.replaceChildren();const arr=(packet.candidateMarkets||[]).slice(0,3);
+ const board=$('quote-board');board.replaceChildren();const arr=(packet.candidateMarkets||[]).slice(0,8);
  board.hidden=false;
  if(['JOGO_JA_PODE_TER_COMECADO','INICIO_HOJE_NAO_CONFIRMADO'].includes(packet.fixture?.status)){const warning=document.createElement('p');warning.textContent='Partida de hoje sem hora de início verificável ou já possivelmente iniciada. O site não tem feed live: não apresenta aqui entradas pré-jogo sem confirmar que a partida ainda não começou.';board.appendChild(warning);return;}
  const heading=document.createElement('strong');heading.className='quote-heading';heading.textContent=arr.length?'MERCADOS NÃO TRIVIAIS — SEM ENTRADA AINDA':'SEM MERCADO FUNDAMENTADO';board.appendChild(heading);
  if(!arr.length){const note=document.createElement('p');const why=(packet.modelLimitations||[]).slice(0,3).join(' · ');note.textContent='Sem seleção estatística para este jogo. '+(why||'Histórico insuficiente para calcular os mercados disponíveis.')+' A IA pode analisar o contexto, mas não deve inventar uma aposta.';board.appendChild(note);return;}
- arr.forEach((c,i)=>{const item=document.createElement('button');item.type='button';item.className='quote-item';
-  const title=document.createElement('strong');title.textContent=(i===0?'Principal · ':'Alternativa · ')+c.name;
-  const details=document.createElement('small');const ref=c.marketReference?` · Referência indicativa ${Number(c.marketReference.indicativeOdd).toFixed(2).replace('.',',')} (não atual)`:' · Sem referência de preço';details.textContent=`Modelo ${(c.modelProbability*100).toFixed(0)}% (não calibrado) · Odd exigida ${Number(c.thresholdOddExperimental).toFixed(2).replace('.',',')} (não é cotação de casa)${ref}`+(c.realismReview?' · DIVERGÊNCIA: rever previsão':'');
-  item.append(title,details);item.addEventListener('click',()=>{$('market').value=c.id;$('price').focus();});board.appendChild(item);
+
+ arr.forEach((market,i)=>{
+  const item=document.createElement('div');item.className='quote-item quote-compare';
+  const title=document.createElement('strong');title.textContent=(i===0?'1.ª hipótese · ': 'Alternativa · ')+market.name;
+  const details=document.createElement('small');
+  const ref=market.marketReference?'Referência indicativa '+Number(market.marketReference.indicativeOdd).toFixed(2).replace('.',',')+' (não atual)':'Referência de mercado indisponível';
+  details.textContent='Prob. experimental '+(market.modelProbability*100).toFixed(0)+'% · Mínimo matemático '+Number(market.thresholdOddExperimental).toFixed(2).replace('.',',')+' · '+ref;
+  const field=document.createElement('input');field.inputMode='decimal';field.autocomplete='off';field.className='quote-odd';field.placeholder='Odd real, ex.: 1,95';
+  field.setAttribute('aria-label','Odd real para '+market.name);field.value=priceDrafts.get(market.id)||'';
+  field.addEventListener('input',()=>{priceDrafts.set(market.id,field.value);const r=$('batch-verdict');if(r){r.hidden=true;r.replaceChildren();}});
+  item.addEventListener('click',e=>{if(e.target===field)return;$('market').value=market.id;$('price').value=field.value;$('price').focus();});
+  item.append(title,details,field);board.appendChild(item);
  });
- const foot=document.createElement('p');foot.textContent='O modelo NÃO prevê as odds das casas. Estas linhas servem só para procurar preços. Introduz a odd real para verificar se compensa. Se a casa pagar menos, não entrar.';board.appendChild(foot);
+ const compare=document.createElement('button');compare.type='button';compare.className='compare-all';compare.textContent='Comparar odds introduzidas';compare.addEventListener('click',compareQuotedMarkets);board.appendChild(compare);
+ const outcome=document.createElement('section');outcome.id='batch-verdict';outcome.className='batch-verdict';outcome.hidden=true;outcome.setAttribute('aria-live','polite');board.appendChild(outcome);
+ const foot=document.createElement('p');foot.textContent='Introduz as odds de vários mercados disponíveis na tua casa. Só com preços reais podemos procurar uma hipótese de valor; mesmo assim o modelo ainda não foi calibrado.';board.appendChild(foot);
 }
 
+async function compareQuotedMarkets(){
+ const entries=[...priceDrafts.entries()].filter(([,odd])=>String(odd).trim()).map(([optionId,odd])=>({optionId,odd}));
+ if(!entries.length){statusNote('Introduz pelo menos uma odd real nos campos dos mercados a comparar.');return;}
+ const result=$('batch-verdict');if(!result){statusNote('Atualiza a página para voltar a carregar os mercados.');return;}
+ result.hidden=false;result.replaceChildren();const loading=document.createElement('p');loading.textContent='A comparar os preços...';result.append(loading);
+ try{
+  const payload=await post('/api/ai/preview',{league:$('league').value,fixtureId:currentFixture.id,offers:entries});
+  result.replaceChildren();
+  const title=document.createElement('strong');
+  title.textContent=payload.bestCandidate?'MELHOR PREÇO EXPERIMENTAL — NÃO VALIDADO':'NENHUMA ENTRADA COM ESTAS ODDS';
+  result.append(title);
+  for(const item of payload.offers){
+   const line=document.createElement('p');
+   const state=item.decision==='POTENCIAL'?'POSSÍVEL PREÇO (EXPERIMENTAL)':'NÃO ENTRAR';
+   line.textContent=state+' · '+item.market+' · Casa '+Number(item.odd).toFixed(2).replace('.',',')+' · Exigida '+Number(item.estimatedMinimumOdd).toFixed(2).replace('.',',')+' · EV estimado '+(item.estimatedEv*100).toFixed(1).replace('.',',')+'%';
+   result.append(line);
+  }
+  const note=document.createElement('p');note.textContent=payload.notice;result.append(note);
+  if(payload.bestCandidate){
+   $('market').value=payload.bestCandidate.optionId;$('price').value=String(payload.bestCandidate.odd).replace('.',',');
+  }
+ }catch(e){result.replaceChildren();result.hidden=true;statusNote('Erro na comparação: '+e.message);}
+}
 async function preview(){const id=currentFixture?.id;if(!id)return;try{const b=await post('/api/ai/preview',{league:$('league').value,fixtureId:id});if(id!==currentFixture?.id)return;packet=b.packet;showMarketsToQuote(packet);const m=$('market');m.replaceChildren();addOption(m,'','Sem mercado escolhido');for(const c of packet.candidateMarkets||[])addOption(m,c.id,`${c.name} · mínimo do modelo ${Number(c.thresholdOddExperimental).toFixed(2)}`);if(packet.primaryMarketToQuote?.id)m.value=packet.primaryMarketToQuote.id;$('live-flag').textContent=packet.fixture?.status==='INICIO_HOJE_NAO_CONFIRMADO'?'HORA DE INÍCIO NÃO CONFIRMADA HOJE':packet.fixture?.status==='JOGO_JA_PODE_TER_COMECADO'?'JOGO PODE ESTAR A DECORRER':'PRÉ-JOGO · SEM LIVE FEED';
  const details=packet.quality?` · Jogos encontrados: ${packet.quality.homeGames??0} casa / ${packet.quality.awayGames??0} fora; no recorte: ${packet.quality.homeVenue??0} em casa / ${packet.quality.awayVenue??0} fora`:'';const ready=packet.modelReady?'Modelo numérico disponível, NÃO calibrado.':'Modelo numérico indisponível'+details+'; '+(packet.modelLimitations||[]).join(' · ');
  $('fixture-preview').textContent=`${packet.fixture.home} vs. ${packet.fixture.away}\n${packet.competition} · ${packet.fixture.date}\n${ready}\nHistórico da liga: ${packet.historicalMatchesInLeague} jogos (não inclui todas as competições)\nEstado: ${packet.fixture.status}\nSem feed em direto.`;
