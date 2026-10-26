@@ -6,3 +6,12 @@
 
 /* v5.6 - comparação de preços reais, não apenas probabilidades */
 .quote-compare{cursor:default}.quote-compare:hover{border-color:#446c65}.quote-odd{display:block;width:100%;margin-top:10px;padding:9px 11px;border:1px solid #65827d;border-radius:7px;background:#0d222b;color:#fff;font-size:13px}.quote-odd:focus{outline:2px solid #b6e17e;outline-offset:1px}.compare-all{display:block;width:100%;background:#c9f47b;color:#122217;border:none;border-radius:9px;padding:12px;margin-top:12px;font-weight:800;font-size:13px;cursor:pointer}.batch-verdict{margin-top:12px;padding:13px;border:1px solid #507e70;background:#102f30;border-radius:9px}.batch-verdict strong{font-size:13px}.batch-verdict p{margin:10px 0;border-top:1px solid #40635d;padding-top:8px;font-size:11px;color:#dbe9e9}.batch-verdict[hidden]{display:none}
+
+/* Histórico é independente de saber se o jogo já começou. */
+.history-available{padding:12px;border-radius:9px;background:#132a32;border:1px solid #4b766d;margin-bottom:13px;color:#d9eee7}
+.history-available>strong{display:block;color:#d0f08d;font-size:12px;letter-spacing:.04em;margin-bottom:8px}
+.history-available>p,.history-team p{font-size:11px;line-height:1.6;margin:7px 0;color:#c6dada}
+.history-team{border-top:1px solid #385861;padding-top:10px;margin-top:10px}
+.history-team b{color:#fff;font-size:12px}
+.history-team p{overflow-wrap:anywhere}
+.kickoff-limitation{background:#382f27;border:1px solid #8e7358;border-radius:7px;padding:10px!important;color:#f1dbbb!important}
