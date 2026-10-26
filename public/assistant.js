@@ -34,7 +34,9 @@ function showMarketsToQuote(packet){
   const title=document.createElement('strong');title.textContent=(i===0?'1.ª hipótese · ': 'Alternativa · ')+market.name;
   const details=document.createElement('small');
   const ref=market.marketReference?'Referência indicativa '+Number(market.marketReference.indicativeOdd).toFixed(2).replace('.',',')+' (não atual)':'Referência de mercado indisponível';
-  details.textContent='Prob. experimental '+(market.modelProbability*100).toFixed(0)+'% · Mínimo matemático '+Number(market.thresholdOddExperimental).toFixed(2).replace('.',',')+' · '+ref;
+  const audit=market.historicalAudit;
+  const evidence=audit?.n>=25?' · Auditoria cronológica '+audit.n+' jogos; Brier modelo '+Number(audit.brier).toFixed(3)+' vs. referência '+Number(audit.baselineBrier).toFixed(3)+(audit.status==='DESFAVORAVEL'?' · ALERTA: desempenho fraco':' · '+audit.status):' · Sem auditoria histórica suficiente para este mercado';
+  details.textContent='Prob. experimental '+(market.modelProbability*100).toFixed(0)+'% · Mínimo matemático '+Number(market.thresholdOddExperimental).toFixed(2).replace('.',',')+' · '+ref+evidence;
   const field=document.createElement('input');field.inputMode='decimal';field.autocomplete='off';field.className='quote-odd';field.placeholder='Odd real, ex.: 1,95';
   field.setAttribute('aria-label','Odd real para '+market.name);field.value=priceDrafts.get(market.id)||'';
   field.addEventListener('input',()=>{priceDrafts.set(market.id,field.value);const r=$('batch-verdict');if(r){r.hidden=true;r.replaceChildren();}});
