@@ -13,7 +13,7 @@ test('Histórico da liga existe independentemente da disponibilidade de mercados
  for(let i=1;i<=100;i++){
   const d=new Date(Date.parse(date+'T00:00:00Z')-i*86400000).toISOString().slice(0,10);
   matches.push({date:d,home:teams[i%4],away:teams[(i+1)%4],hg:i%4,ag:(i+1)%3,
-   hc:i%5===0?null:3+i%6,ac:4+i%5,hs:i%6===0?null:9+i%8,as:8+i%7,hst:3,ast:4,
+   hc:i%4===0?null:3+i%6,ac:i%4===3?null:4+i%5,hs:i%6===0?null:9+i%8,as:8+i%7,hst:3,ast:4,
    hhg:0,hag:1,hy:2,ay:2});
  }
  const f={id:'P1|'+date+'|CD%20Santa%20Clara|Sport%20Lisboa%20e%20Benfica',date,home:'CD Santa Clara',away:'Sport Lisboa e Benfica',time:null};
