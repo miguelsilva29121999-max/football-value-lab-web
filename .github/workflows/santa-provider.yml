@@ -1,0 +1,17 @@
+name: Diagnóstico da fonte Primeira Liga
+on:
+  push:
+    paths:
+      - 'scripts/diagnose-santa-clara.mjs'
+      - '.github/workflows/santa-provider.yml'
+      - 'lib/providers.mjs'
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/diagnose-santa-clara.mjs
