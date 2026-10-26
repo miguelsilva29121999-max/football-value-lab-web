@@ -1,5 +1,6 @@
 import {loadLeague} from '../lib/providers.mjs';
 import {estimateMatch,normalizedTeam} from '../lib/model.mjs';
+import {createMatchContext} from '../lib/ai-assistant.mjs';
 const date='2026-10-26';
 const data=await loadLeague('P1',new Date(date+'T12:00:00Z'));
 const santa=['Santa Clara','CD Santa Clara','Santa Clara Açores'].map(normalizedTeam);
@@ -13,3 +14,5 @@ date,match:match?{id:match.id,home:match.home,away:match.away,date:match.date,ti
 aliases:{santa,benfica},santaGames:santaGames.length,benficaGames:benficaGames.length,
 santaRecent:santaGames.slice(-6).map(m=>[m.date,m.home,m.away,m.hg,m.ag]),benficaRecent:benficaGames.slice(-6).map(m=>[m.date,m.home,m.away,m.hg,m.ag]),
 modelReady:est.ready,reasons:est.reasons||[],quality:est.quality||null}));
+
+if(match){const t=Date.now();const {packet}=await createMatchContext({league:'P1',fixtureId:match.id},async()=>data);console.log('SANTA_PREVIEW_DIAGNOSTIC',JSON.stringify({elapsedMs:Date.now()-t,modelReady:packet.modelReady,status:packet.fixture.status,candidates:packet.candidateMarkets.length,history:packet.historySummary&&{homeGames:packet.historySummary.home.leagueGames,awayGames:packet.historySummary.away.leagueGames,homeLastFive:packet.historySummary.home.lastFive.games.length,awayLastFive:packet.historySummary.away.lastFive.games.length,homeCornersCoverage:packet.historySummary.home.lastFive.averages.corners.coverage,awayShotsCoverage:packet.historySummary.away.lastFive.averages.shots.coverage}}));}
