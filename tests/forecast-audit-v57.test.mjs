@@ -27,7 +27,7 @@ test('O modelo nao herda auditoria de mercados diferentes',()=>{
  const options=allMarketOptions();
  assert.equal(metricForMarket(options.find(x=>x.market==='btts'&&x.selection==='yes')),'btts_yes');
  assert.equal(metricForMarket(options.find(x=>x.market==='totals'&&x.point===2.5&&x.selection==='under')),'under25');
- assert.equal(metricForMarket(options.find(x=>x.market==='team_corners')),null);
+ assert.match(metricForMarket(options.find(x=>x.market==='team_corners')),/^other_team_corners_/);
 });
 test('Conjunto pequeno nao gera falsos sinais de validacao',()=>{
  const out=auditForecasts(matches.slice(0,16),{maxGames:10});
@@ -43,4 +43,19 @@ test('Resultado de auditoria e explicacao ficam associados ao mercado, sem afeta
   if(c.historicalAudit)assert.ok(c.historicalAudit.n>=0);
   assert.ok(c.thresholdOddExperimental>1);
  }
+});
+
+test('Auditoria de cantos e remates ignora observacoes sem colunas validas',()=>{
+ const options=allMarketOptions();
+ const corners=options.find(o=>o.market==='team_corners'&&o.team==='home'&&o.point===5.5&&o.selection==='over');
+ const shots=options.find(o=>o.market==='shots'&&o.point===19.5&&o.selection==='under');
+ const audit=auditForecasts(matches,{maxGames:55,minPrior:90,markets:[corners,shots]});
+ const c=audit.marketResults[metricForMarket(corners)],s=audit.marketResults[metricForMarket(shots)];
+ assert.ok(c.n>=20&&s.n>=20);
+ assert.ok(c.brier>=0&&c.brier<=1);
+ assert.ok(s.brier>=0&&s.brier<=1);
+ const incomplete=matches.map(m=>({...m,hc:null,ac:null,hs:null,as:null}));
+ const missing=auditForecasts(incomplete,{maxGames:55,minPrior:90,markets:[corners,shots]});
+ assert.equal(missing.marketResults[metricForMarket(corners)].n,0);
+ assert.equal(missing.marketResults[metricForMarket(shots)].n,0);
 });
