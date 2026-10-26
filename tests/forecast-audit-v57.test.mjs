@@ -11,7 +11,7 @@ const matches=Array.from({length:330},(_,i)=>{
  return {date,home:a,away:b,hg:(i*7)%4,ag:(i*5+1)%4,hhg:i%2,hag:(i+1)%2,
   hc:3+i%7,ac:4+i%5,hy:2,ay:1,hs:11+i%10,as:8+i%9,hst:2+i%6,ast:3+i%4};
 });
-const fixture={id:'E0|2026-12-12|A|B',date:'2026-12-12',home:'A',away:'B',time:null};
+const fixture={id:'E0|2026-08-01|A|B',date:'2026-08-01',home:'A',away:'B',time:null};
 test('Auditoria calcula previsoes com cronologia e baseline pre-jogo',()=>{
  const audit=auditForecasts(matches,{maxGames:55,minPrior:90});
  assert.ok(audit.examined>20,'Amostra deve conter previsoes viaveis');
