@@ -37,3 +37,13 @@ test('Odd moderada que passa triagem nao recebe rotulo de aposta comprovada',()=
  assert.equal(m.decision,'POTENCIAL');
  assert.match(m.verification,/não calibradas/);
 });
+
+test('Referencia de mercado independente sinaliza divergencia sem a considerar odd atual',()=>{
+ const withReference={...context,markets:[{optionId:btts.id,marketReference:{impliedNoVig:0.30,indicativeOdd:3.10,source:'snapshot antigo'}}]};
+ const m=buildManualOdd(withReference,btts.id,'2,05');
+ assert.equal(m.pricePassesMinimum,true);
+ assert.equal(m.decision,'REVER_MODELO');
+ assert.equal(m.reliabilityAssessment,'REFERENCIA_DE_MERCADO_DIVERGENTE');
+ assert.ok(m.reviewReasons.includes('DESVIO_FACE_A_PRECO_INDICATIVO'));
+ assert.match(m.reason,/NÃO é a odd atual/);
+});
