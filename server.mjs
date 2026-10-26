@@ -7,7 +7,7 @@ import {LEAGUES,POLICY,allMarketOptions} from './lib/model.mjs';
 import {loadLeague,scanLeagues,analyzeFixture,oddsSports} from './lib/providers.mjs';
 import {scanStatFirst,checkStatManual,QUOTE_PROFILES} from './lib/statfirst.mjs';
 import {scanMarketLab,evaluateMultipleRequest,SEARCH_MODES} from './lib/marketlab.mjs';
-import {createMatchContext, buildManualOdd, askGeminiAI} from './lib/ai-assistant.mjs';
+import {createMatchContext, buildManualOdd, compareManualOffers, askGeminiAI} from './lib/ai-assistant.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 let env={...process.env};
 try{for(const line of fs.readFileSync(path.join(root,'.env'),'utf8').split(/\r?\n/)){const m=line.match(/^\s*([A-Z_][A-Z_0-9]*)\s*=\s*(.*?)\s*$/);
@@ -38,6 +38,7 @@ export async function handleRequest(req,res){
   if(req.method==='POST'&&url.pathname==='/api/ai/preview'){
    const body=await readJson(req);
    const match=await createMatchContext({league:String(body.league||''),fixtureId:String(body.fixtureId||'')});
+   if(Array.isArray(body.offers))return send(res,200,compareManualOffers(match,body.offers));
    if(body.optionId!==undefined||body.odd!==undefined){
     const manual=buildManualOdd(match,String(body.optionId||''),body.odd);
     if(!manual)return send(res,400,{error:'Seleciona mercado e introduz uma odd decimal.'});
