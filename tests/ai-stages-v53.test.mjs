@@ -11,12 +11,13 @@ for(let i=0;i<400;i++){
  games.push({date,home:teams[i%8],away:teams[(i+3)%8],hg:i%3,ag:(i+1)%3,hhg:i%2,hag:(i+1)%2,hc:3+i%9,ac:3+i%7,hy:1+i%4,ay:2+i%4,hs:8+i%14,as:9+i%11,hst:2+i%6,ast:3+i%6});
 }
 const loader=async()=>({fixtures:[fixture],matches:games,source:['teste'],issues:[]});
-test('v5.3: estatísticas suficientes devolvem mercado principal para cotar independentemente do Gemini',async()=>{
+test('v5.6: histórico suficiente permite análise, sem forçar uma entrada sem preços reais',async()=>{
  const {packet}=await createMatchContext({league:'E0',fixtureId:fixture.id},loader);
  assert.equal(packet.modelReady,true);
- assert.ok(packet.candidateMarkets.length>=1);
+ assert.ok(Array.isArray(packet.candidateMarkets));
  assert.equal(packet.analysisStage,'PRE_COTACAO');
- assert.equal(packet.primaryMarketToQuote.id,packet.candidateMarkets[0].id);
+ if(packet.candidateMarkets.length)assert.equal(packet.primaryMarketToQuote.id,packet.candidateMarkets[0].id);
+ else assert.equal(packet.primaryMarketToQuote,null);
  assert.equal(packet.manualPriceRequiredForValueAssessment,true);
  assert.equal(packet.marketOddsAvailable,false);
 });
@@ -43,5 +44,6 @@ test('v5.3: interface tem quadro de mercados com seleção de odd',()=>{
  const js=fs.readFileSync(new URL('../public/assistant.js',import.meta.url),'utf8');
  assert.match(html,/id="quote-board"/);
  assert.match(js,/showMarketsToQuote/);
- assert.match(js,/\$\('market'\)\.value=c\.id/);
+ assert.match(js,/priceDrafts/);
+ assert.match(js,/compareQuotedMarkets/);
 });
