@@ -48,7 +48,9 @@ function showFixture(){
  if(filtered.some(f=>f.id===previous))sel.value=previous;
  else if(filtered.length===1)sel.value=filtered[0].id;
  $('fixture-count').textContent=filtered.length+' jogos futuros'+(search?' encontrados':'');
+ if(currentFixture?.id===sel.value&&sel.value)return;
  selectedFixture();
+ if(currentFixture)preview();
 }
 function selectedFixture(){
  currentFixture=fixtures.find(f=>f.id===$('fixture').value)||null;
