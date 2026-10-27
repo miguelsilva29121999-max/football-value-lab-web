@@ -1,27 +1,64 @@
 <!doctype html>
-<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Football Value Lab Web 5.7.1 · Assistente IA</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assistant.css"></head>
-<body><div class="app">
- <aside class="sidebar"><a class="logo" href="/ai"><span class="mark">V<span>•</span></span><div><strong>FOOTBALL VALUE</strong><small>INTELLIGENCE · WEB V5.7.1</small></div></a>
-  <div class="sidetitle">O TEU LABORATÓRIO</div><a class="nav active" href="/ai">✦ &nbsp; Assistente IA</a><a class="nav" href="/">◈ &nbsp; Ferramentas anteriores</a>
-  <div class="sidebar-note"><span class="status-dot"></span><span id="api-state">A verificar integração IA...</span><p>As estatísticas são do fornecedor de futebol; a IA interpreta-as e pode pesquisar notícias. Não existe feed live neste momento.</p></div>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08131a">
+<title>Football Value Lab 5.8 · Centro de oportunidades</title>
+<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assistant.css">
+</head>
+<body>
+<div class="app">
+ <aside class="sidebar">
+  <a class="logo" href="/ai" aria-label="Football Value Lab"><span class="mark">V</span><span><strong>FOOTBALL<span class="lime"> VALUE</span></strong><small>INTELLIGENCE LAB · V5.8</small></span></a>
+  <div class="side-section">ESPAÇO DE ANÁLISE</div>
+  <nav aria-label="Secções">
+   <a class="nav active" href="#workspace"><span>◈</span> Jogo</a>
+   <a class="nav" href="#opportunities"><span>◎</span> Oportunidades</a>
+   <a class="nav" href="#history"><span>▥</span> Estatísticas</a>
+   <a class="nav" href="#analyst"><span>✦</span> Assistente IA</a>
+  </nav>
+  <div class="sidebar-note"><span class="status-dot"></span><span id="api-state">A verificar Gemini…</span><p>Preços de casas introduzidos por ti. Sem feed de apostas ou eventos em direto.</p></div>
  </aside>
- <main><header class="topbar"><span>ANÁLISE FUTEBOLÍSTICA &nbsp; / &nbsp; ASSISTENTE IA</span><div id="today"></div></header>
- <section class="intro"><span class="eyebrow">NOVA FORMA DE ANALISAR</span><h1>Escolhe o jogo.<br><em>A IA investiga.</em></h1><p>O preço decide. Compara odds reais e consulta a qualidade histórica das previsões por mercado. Só depois avalia se existe uma hipótese de valor.</p><div class="pill-row"><span>📊 Dados históricos</span><span>🌐 Notícias por pesquisa</span><span>🧠 Gemini IA · plano gratuito</span></div></section>
- <div class="content-grid"><section class="selection-panel"><div class="section-label">01 / ESCOLHER A PARTIDA</div><label for="league">Competição</label><select id="league"><option value="">A carregar ligas...</option></select>
- <label for="filter">Procurar equipa na lista</label><input id="filter" placeholder="Ex.: Benfica, Liverpool, Barcelona" autocomplete="off">
- <label for="fixture">Jogo disponível</label><select id="fixture"><option value="">Seleciona primeiro uma liga</option></select>
- <button id="refresh" class="quiet">↻ Atualizar calendário</button>
- <div id="fixture-preview" class="fixture-summary">Escolhe uma partida para consultar os dados disponíveis.</div><section id="quote-board" class="quote-board" hidden aria-live="polite"></section>
- <label class="check"><input id="research" type="checkbox" checked><span><strong>Pesquisar notícias e contexto na web</strong><small>Lesões, convocados, onzes e alterações recentes quando confirmados. Disponibilidade sujeita à quota e ao modelo configurado; não garante notícias atualizadas.</small></span></label>
- <div class="section-label extra">02 / COTAÇÕES · COMPARAR VÁRIAS ODDS</div><label for="market">Mercado a comparar (dos modelados)</label><select id="market"><option value="">Sem mercado escolhido</option></select>
- <label for="price">Odd que viste na tua casa</label><input id="price" placeholder="Ex.: 1,85" inputmode="decimal">
- <p class="muted small">A odd mínima é apenas matemática, não o preço oferecido pela casa. Procura odds a partir de 1,70 e compara várias seleções no quadro acima. Preços inferiores são rejeitados neste perfil.</p>
- <button id="check-price" class="quiet check-price" type="button">✓ Validar odd (sem gastar Gemini)</button><div id="price-verdict" class="price-verdict" hidden aria-live="polite"></div>
- <button id="analyze" class="primary">✦ Investigar mercados para cotar</button><p id="problem" class="error" hidden></p>
- </section>
- <section class="chat-panel"><div class="chat-top"><div><div class="section-label">03 / ANALISTA IA</div><h2 id="chat-title">Relatório do jogo</h2></div><span id="live-flag" class="badge">PRÉ-JOGO · SEM LIVE FEED</span></div>
- <div id="chat" class="chat"><div class="empty-chat"><div class="orb">✦</div><h3>O teu analista está pronto</h3><p>Escolhe um jogo, consulta os mercados e introduz várias odds reais. Carrega em <b>Comparar odds introduzidas</b> para ver se existe alguma hipótese que mereça investigação.</p></div></div>
- <form id="followup" class="compose"><input id="question" type="text" maxlength="1200" placeholder="Pergunta sobre cantos, golos, lesões, estatísticas..." disabled><button id="send" type="submit" disabled>Enviar ↗</button></form>
- </section></div>
- <footer><b>Limitações importantes</b> · Sem feed desportivo em direto; não apresentar estados live como confirmados. As probabilidades históricas não foram calibradas, o resultado não garante uma aposta lucrativa e o melhor mercado pode ser «sem entrada». A seleção para cotar é uma hipótese estatística, não uma entrada validada. O Gemini pode ser utilizado gratuitamente dentro dos limites do plano escolhido; sem feed live. Não partilhes a tua chave nem atives faturação para esta versão.</footer>
- </main></div><script type="module" src="/assistant.js"></script></body></html>
+ <main>
+  <header class="topbar"><div class="crumb">LABORATÓRIO <span>/</span> CENTRO DE OPORTUNIDADES</div><div class="top-date" id="today"></div></header>
+  <section class="hero">
+   <div><span class="eyebrow">ANÁLISE PRÉ-JOGO · NOVA INTERFACE</span><h1>Uma boa aposta começa <em>no preço.</em></h1>
+    <p>Escolhe um jogo, compara várias odds reais e consulta a conclusão do motor. A IA explica as oportunidades e os riscos — não inventa uma entrada quando faltam preços.</p>
+   </div><div class="hero-stat"><span>O QUE PROCURAMOS</span><strong>Valor, não volume.</strong><small>Probabilidades experimentais · Sem garantia de lucro</small></div>
+  </section>
+  <section id="workspace" class="panel fixture-panel">
+   <div class="panel-head"><div><span class="step">01 / JOGO</span><h2>Escolher partida</h2></div><span class="hint" id="fixture-count">A carregar calendário…</span></div>
+   <div class="fixture-controls">
+    <div><label for="league">Competição</label><select id="league"><option value="">A carregar…</option></select></div>
+    <div><label for="filter">Pesquisar equipa</label><input id="filter" placeholder="Benfica, Porto, Barcelona…" autocomplete="off"></div>
+    <div class="fixture-select"><label for="fixture">Próximos jogos</label><select id="fixture"><option value="">Seleciona uma competição</option></select></div>
+    <button id="refresh" class="icon-button" type="button" title="Atualizar calendário" aria-label="Atualizar calendário">↻</button>
+   </div>
+   <div class="fixture-bottom"><div id="fixture-preview" class="fixture-summary">Escolhe uma partida futura para começar.</div><span id="live-flag" class="match-flag">SEM FEED LIVE</span></div>
+   <p id="problem" class="error" hidden role="alert"></p>
+  </section>
+  <section id="opportunities" class="opportunities-section">
+   <div class="section-heading"><div><span class="step">02 / MERCADOS & ODDS</span><h2>Onde pode estar a oportunidade?</h2><p>Os mercados são hipóteses até introduzires preços reais. As odds mínimas são estimativas do modelo, não cotações das casas.</p></div>
+    <div class="section-actions"><span id="market-count" class="count-chip">0 mercados</span><button id="analyze" type="button" class="primary">✦ Analisar com Gemini</button></div></div>
+   <section id="decision-summary" class="decision-summary" aria-live="polite"><span class="decision-eyebrow">AVALIAÇÃO DA PARTIDA</span><h3>À procura de uma oportunidade?</h3><p>Seleciona um jogo e introduz as odds da tua casa. Depois de comparar os preços, apresentamos uma conclusão clara.</p></section>
+   <div id="quote-board" class="quote-board" aria-live="polite"><div class="empty-markets"><strong>Escolhe um jogo acima</strong><p>O motor vai preparar mercados para comparares, sem recomendar uma aposta antes de saber a odd.</p></div></div>
+   <section id="batch-verdict" class="batch-verdict" hidden aria-live="polite"></section>
+   <details class="manual-details"><summary>Comparar outro mercado individualmente <span>▾</span></summary>
+    <div class="manual-grid"><div><label for="market">Mercado</label><select id="market"><option value="">Sem mercado escolhido</option></select></div><div><label for="price">Odd da casa</label><input id="price" placeholder="Ex.: 2,05" inputmode="decimal"></div><button id="check-price" type="button" class="secondary-button">Validar preço</button></div>
+    <div id="price-verdict" class="price-verdict" hidden aria-live="polite"></div>
+   </details>
+  </section>
+  <section class="detail-grid">
+   <section id="history" class="panel history-panel"><div class="panel-head"><div><span class="step">03 / DADOS</span><h2>Estatísticas verificáveis</h2></div><span class="subtle-chip">Só histórico da liga</span></div>
+    <div id="history-panel" class="history-content"><p class="empty-hint">Quando escolheres um jogo, aqui aparecem os últimos resultados e as médias disponíveis, com a cobertura de cada estatística.</p></div>
+   </section>
+   <section id="analyst" class="panel analyst-panel"><div class="panel-head"><div><span class="step">04 / GEMINI</span><h2 id="chat-title">Assistente de análise</h2></div><label class="research-toggle" title="Sujeito às quotas gratuitas do Gemini"><input id="research" type="checkbox"><span>Pesquisar notícias</span></label></div>
+    <div id="chat" class="chat" aria-live="polite"><div class="empty-chat"><span class="ai-mark">✦</span><h3>Uma segunda opinião, com contexto.</h3><p>Carrega em «Analisar com Gemini» para receber uma explicação curta dos mercados e riscos. Depois podes continuar a conversa.</p></div></div>
+    <form id="followup" class="compose"><input id="question" maxlength="1200" placeholder="Pergunta sobre golos, cantos, ausências…" disabled><button id="send" type="submit" disabled>Enviar</button></form>
+   </section>
+  </section>
+  <footer>Football Value Lab · Estimativas não calibradas e sem garantias de lucro. Odds fornecidas manualmente; confirma o mercado e a disponibilidade na casa antes de qualquer decisão. Sem feed desportivo em direto.</footer>
+ </main>
+</div>
+<script type="module" src="/assistant.js"></script>
+</body></html>
