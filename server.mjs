@@ -101,7 +101,7 @@ export async function handleRequest(req,res){
    if(!LEAGUES[league]||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(f.date||'')||!f.home||!f.away||String(f.home).length>100||String(f.away).length>100)throw Error('Jogo inválido.');
    const offer=manualOffer(body.manual);return send(res,200,await analyzeFixture(league,f,{manualOffers:offer?[offer]:[],oddsKey:key,extended:body.extended===true&&!offer,mode:body.mode==='conservative'?'conservative':'balanced'}));
   }
-  const staticFiles={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/favicon.svg':'favicon.svg','/ai':'assistant.html','/assistant.html':'assistant.html','/assistant.js':'assistant.js','/assistant.css':'assistant.css'};
+  const staticFiles={'/':'assistant.html','/index.html':'assistant.html','/style.css':'style.css','/app.js':'app.js','/favicon.svg':'favicon.svg','/ai':'assistant.html','/assistant.html':'assistant.html','/assistant.js':'assistant.js','/assistant.css':'assistant.css'};
   if(req.method==='GET'&&Object.hasOwn(staticFiles,url.pathname)){res.writeHead(200,{'content-type':mime[url.pathname], 'cache-control':'no-cache','x-content-type-options':'nosniff'});
    fs.createReadStream(path.join(root,'public',staticFiles[url.pathname])).pipe(res);return;}
   return send(res,404,{error:'Rota não encontrada.'});
