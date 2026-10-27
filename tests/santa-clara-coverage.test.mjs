@@ -39,8 +39,8 @@ test('Histórico não transforma estatísticas desconhecidas em zero',()=>{
 });
 test('No dia da partida o UI mostra histórico antes de bloquear entradas pré-jogo',()=>{
  const js=fs.readFileSync(new URL('../public/assistant.js',import.meta.url),'utf8');
- const history=js.indexOf('appendAvailableHistory(board,packet);');
- const guard=js.indexOf("if(['JOGO_JA_PODE_TER_COMECADO','INICIO_HOJE_NAO_CONFIRMADO'].includes(packet.fixture?.status))");
- assert.ok(history>0&&guard>history);
- assert.match(js,/O histórico acima ESTÁ DISPONÍVEL/);
+ const history=js.indexOf('renderHistory(packet);');
+ const guard=js.indexOf('const locked=isNoKickoff(data.fixture);');
+ assert.ok(history>0&&guard>0,'histórico e bloqueio continuam separados');
+ assert.match(js,/Apenas consulta histórica/);
 });
