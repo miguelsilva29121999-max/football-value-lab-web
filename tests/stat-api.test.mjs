@@ -13,7 +13,7 @@ const mock=async (url,opts)=>{
  let body;
  if(s.includes('/2627/P1.csv'))body=season(2026);
  else if(s.includes('/2526/P1.csv'))body=season(2025);
- else if(s.includes('/matches/fixtures.csv'))body='Div,Date,Time,HomeTeam,AwayTeam\nP1,29/10/2026,20:00,Team A,Team B\n';
+ else if(s.includes('/matches/fixtures.csv'))body='Div,Date,Time,HomeTeam,AwayTeam\nP1,10/11/2026,20:00,Team A,Team B\n';
  else throw new Error('Missing mock: '+s);
  return new Response(body,{status:200,headers:{'content-type':'text/csv'}});
 };
