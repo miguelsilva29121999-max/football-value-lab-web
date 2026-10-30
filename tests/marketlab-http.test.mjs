@@ -5,7 +5,7 @@ const baseFetch=global.fetch;
 const headings='Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HTHG,HTAG,HC,AC,HY,AY,HS,AS,HST,AST';
 const teams=['Team A','Team B','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth'];
 const season=y=>[headings,...Array.from({length:220},(_,i)=>[ 'P1',`${String(1+i%25).padStart(2,'0')}/${i%2?'09':'10'}/${y}`,teams[i%10],teams[(i+3)%10],i%4,(i+2)%3,i%2,(i+1)%2,3+i%8,3+i%6,1+i%3,2+i%3,9+i%9,8+i%9,3+i%5,2+i%6].join(','))].join('\n');
-const fixtures='Div,Date,Time,HomeTeam,AwayTeam\nP1,29/10/2026,20:00,Team A,Team B\nP1,30/10/2026,20:00,Third,Fourth\n';
+const fixtures='Div,Date,Time,HomeTeam,AwayTeam\nP1,12/11/2026,20:00,Team A,Team B\nP1,13/11/2026,20:00,Third,Fourth\n';
 test('Novos endpoints respondem com mercados e recusam múltipla com mesmo jogo',async()=>{
  global.fetch=async(url,opts)=>{
   if(String(url).startsWith('http://127.0.0.1:'))return baseFetch(url,opts);
