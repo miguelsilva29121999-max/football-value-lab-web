@@ -335,7 +335,7 @@ async function loadFixtures(){
   try {
     const data = await fetchJSON('/api/fixtures?league=' + encodeURIComponent(league));
     const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    fixtures = (data.fixtures||[]).filter(f=>typeof f.date==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(f.date)&&f.date>=today);
+    fixtures = (data.fixtures||[]).filter(f=>typeof f.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(f.date)&&f.date>=today);
     showFixture();
     if (!fixtures.length) statusNote('Esta fonte não tem jogos futuros listados nesta liga. Tenta outra competição.');
   } catch (e) {
