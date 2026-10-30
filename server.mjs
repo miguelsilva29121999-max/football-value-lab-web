@@ -53,6 +53,17 @@ export async function handleRequest(req,res){
    const match=await createMatchContext({league:String(body.league||''),fixtureId:String(body.fixtureId||'')});
    const manual=body.optionId&&String(body.odd||'').trim()?buildManualOdd(match,String(body.optionId),body.odd):null;
    const history=Array.isArray(body.history)?body.history.slice(-6):[];
+   // Nunca autorizar a IA a inventar mercados ou percentagens quando o modelo não os gerou.
+   if(!manual&&!String(body.question||'').trim()&&!match.packet.candidateMarkets.length){
+    const p=match.packet,q=p.quality||{};
+    const reasons=(p.modelLimitations||[]).filter(Boolean).slice(0,3).join('; ');
+    const result='SEM ENTRADA NUMÉRICA JUSTIFICADA. '+p.fixture.home+' — '+p.fixture.away+
+     '. Histórico reconhecido: '+(q.homeGames??0)+' jogos da equipa da casa ('+(q.homeVenue??0)+' em casa), '+
+     (q.awayGames??0)+' jogos da equipa visitante ('+(q.awayVenue??0)+' fora). '+
+     (reasons?'Limitações: '+reasons+'. ':'')+
+     'Não existe probabilidade nem odd mínima validada para esta partida. Consulta os resultados históricos ou escolhe um jogo com melhor cobertura.';
+    return send(res,200,{text:result,links:[],model:'verificação estatística do servidor',usedWebSearch:false,webRequested:false,generatedAt:new Date().toISOString(),context:p.fixture,manual:null});
+   }
    aiBusy=true;
    try{const result=await askGeminiAI({packet:match.packet,manual,question:body.question,history,searchWeb:body.searchWeb!==false,apiKey:geminiKey,model:aiModel});return send(res,200,{...result,context:match.packet.fixture,manual});}
    finally{aiBusy=false;}
