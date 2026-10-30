@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Football Value Lab Web 5.9 · Assistente IA</title>
+  <title>Football Value Lab Web 5.9.1 · Assistente IA</title>
   <link rel="icon" href="/favicon.svg">
   <link rel="stylesheet" href="/assistant.css">
 </head>
@@ -14,7 +14,7 @@
       <span class="mark">V</span>
       <div>
         <strong>FOOTBALL VALUE LAB</strong>
-        <small>WEB · V5.9</small>
+        <small>WEB · V5.9.1</small>
       </div>
     </a>
     <div class="side-label">WORKSPACE</div>
@@ -53,6 +53,7 @@
     <div class="layout-grid">
       <section class="control-panel card">
         <div class="section-tag">01 / ESCOLHER O JOGO</div>
+        <p id="problem" class="error" hidden role="alert" aria-live="assertive"></p>
         <label for="league">Competição</label>
         <select id="league"><option value="">A carregar ligas...</option></select>
 
@@ -85,7 +86,6 @@
         <div id="price-verdict" class="price-verdict" hidden aria-live="polite"></div>
 
         <button id="analyze" class="primary-btn" type="button">✦ Gerar entrada principal</button>
-        <p id="problem" class="error" hidden></p>
       </section>
 
       <section class="analysis-panel">
