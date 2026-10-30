@@ -42,5 +42,5 @@ test('No dia da partida o UI mostra histórico antes de bloquear entradas pré-j
  const history=js.indexOf('renderHistory(packet);');
  const guard=js.indexOf('locked=isNoKickoff(data.fixture);');
  assert.ok(history>0&&guard>0,'histórico e bloqueio continuam separados');
- assert.match(js,/Apenas consulta histórica/);
+ assert.match(js,/Dados históricos disponíveis/);
 });
