@@ -12,10 +12,40 @@ const statusNote = msg => {
   box.textContent = msg;
 };
 
+// A API da Vercel é privada; o código fica apenas na sessão deste navegador.
+const accessKey='fvl_site_code';
+let accessPrompt=null;
+const readAccess=()=>{try{return sessionStorage.getItem(accessKey)||'';}catch{return '';}};
+const saveAccess=value=>{try{if(value)sessionStorage.setItem(accessKey,value);else sessionStorage.removeItem(accessKey);}catch{}};
+async function requestWithAccess(url,options={}){
+  if(location.protocol==='file:')throw Error('Abre o Football Value Lab através do endereço publicado na Vercel, não diretamente como ficheiro HTML.');
+  const send=()=>{
+    const headers=new Headers(options.headers||{});
+    const code=readAccess();
+    if(code)headers.set('x-fvl-access-code',code);
+    return fetch(url,{...options,headers,cache:'no-store'});
+  };
+  let res=await send();
+  if(res.status===401){
+    saveAccess('');
+    if(!accessPrompt){
+      accessPrompt=Promise.resolve().then(()=>window.prompt('Football Value Lab — introduz o teu código de acesso privado (SITE_ACCESS_CODE):')||'').finally(()=>{accessPrompt=null;});
+    }
+    const code=(await accessPrompt).trim();
+    if(!code)throw Error('A API é privada. Introduz o código de acesso do site para carregar ligas, jogos e Gemini.');
+    saveAccess(code);
+    res=await send();
+    if(res.status===401){saveAccess('');throw Error('Código de acesso incorreto. Atualiza a página para o introduzir novamente.');}
+  }
+  return res;
+}
 const fetchJSON = async (url, options={}) => {
-  const res = await fetch(url, options);
+  const res = await requestWithAccess(url,options);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Error(data.error || `Erro HTTP ${res.status}`);
+  if (!res.ok) {
+    if(res.status===503&&data.code==='ACCESS_NOT_CONFIGURED')throw Error('Falta configurar SITE_ACCESS_CODE no projeto Vercel. Não partilhes o código aqui.');
+    throw Error(data.error || `Erro HTTP ${res.status} em ${url}`);
+  }
   return data;
 };
 const post = (url, data) => fetchJSON(url, {
@@ -304,7 +334,8 @@ async function loadFixtures(){
   statusNote('');
   try {
     const data = await fetchJSON('/api/fixtures?league=' + encodeURIComponent(league));
-    fixtures = data.fixtures || [];
+    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    fixtures = (data.fixtures||[]).filter(f=>typeof f.date==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(f.date)&&f.date>=today);
     showFixture();
     if (!fixtures.length) statusNote('Esta fonte não tem jogos futuros listados nesta liga. Tenta outra competição.');
   } catch (e) {
@@ -435,23 +466,32 @@ $('followup').addEventListener('submit', e => {
 });
 
 (async () => {
+  $('today').textContent = new Date().toLocaleDateString('pt-PT', {timeZone:'Europe/Lisbon',day:'2-digit',month:'long',year:'numeric'});
   try {
-    const status = await fetchJSON('/api/status');
-    leagues = status.leagues || {};
-    const select = $('league');
+    const status=await fetchJSON('/api/status');
+    leagues=status.leagues||{};
+    const select=$('league');
     select.replaceChildren();
-    addOption(select, '', 'Seleciona uma competição');
-    for (const [code, league] of Object.entries(leagues)) {
-      addOption(select, code, `${league.country} · ${league.name}`);
-    }
-    const ai = await fetchJSON('/api/ai/status');
-    $('api-state').textContent = ai.configured ? `Gemini configurado · ${ai.model}` : 'Gemini sem chave · configurar GEMINI_API_KEY';
-    $('today').textContent = new Date().toLocaleDateString('pt-PT', {day:'2-digit', month:'long', year:'numeric'});
-    if (leagues.P1) {
-      $('league').value = 'P1';
+    addOption(select,'','Seleciona uma competição');
+    for(const [code,league] of Object.entries(leagues))
+      addOption(select,code,`${league.country} · ${league.name}`);
+    if(leagues.P1){
+      select.value='P1';
       await loadFixtures();
     }
-  } catch (e) {
-    statusNote('Não foi possível inicializar: ' + e.message);
+  }catch(e){
+    const select=$('league');
+    select.replaceChildren();
+    addOption(select,'','Ligação indisponível — verifica o acesso');
+    $('api-state').textContent='Sem ligação à API';
+    statusNote('Não foi possível carregar as competições: '+e.message);
+    return;
+  }
+  try{
+    const ai=await fetchJSON('/api/ai/status');
+    $('api-state').textContent=ai.configured?`Gemini configurado · ${ai.model}`:'Gemini sem chave · verificar configuração na Vercel';
+  }catch(e){
+    $('api-state').textContent='Gemini não verificado';
+    statusNote('Competições carregadas, mas não foi possível consultar o estado da IA: '+e.message);
   }
 })();
