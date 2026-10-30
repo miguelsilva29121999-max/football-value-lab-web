@@ -244,7 +244,8 @@ function showMarketsToQuote(data){
  if(!arr.length){
   const none=document.createElement('div');none.className='decision-panel';
   const reasons=(data.modelLimitations||[]).filter(Boolean).slice(0,3).join(' · ');
-  none.textContent='Não foram encontrados mercados com suporte suficiente. '+(reasons||'Consulta o histórico disponível abaixo; não serão inventadas probabilidades.');
+  const q=data.quality||{};
+  none.textContent='Não há mercado numérico para validar neste jogo. Casa: '+(q.homeGames??0)+' jogos ('+(q.homeVenue??0)+' em casa); fora: '+(q.awayGames??0)+' jogos ('+(q.awayVenue??0)+' fora). '+(reasons||'Consulta o histórico e escolhe um jogo com melhor cobertura.');
   board.append(none);return;
  }
  const grid=document.createElement('div');grid.className='entry-grid';
@@ -364,7 +365,9 @@ function showFixture(){
   filtered.forEach(f => addOption(select, f.id, `${f.date} · ${f.home} — ${f.away}`));
   if (filtered.some(f => f.id === previous)) select.value = previous;
   else if (filtered.length === 1) select.value = filtered[0].id;
+  if(currentFixture?.id===select.value&&select.value)return;
   selectedFixture();
+  if(currentFixture)preview();
 }
 
 function selectedFixture(){
@@ -430,8 +433,12 @@ async function preview(){
     (packet.candidateMarkets || []).forEach(c => addOption(marketSelect, c.id, `${c.name} · odd mínima ${toOdd(c.thresholdOddExperimental)}`));
     if (packet.primaryMarketToQuote?.id) marketSelect.value = packet.primaryMarketToQuote.id;
 
-    const ready = packet.modelReady ? 'Modelo numérico disponível, ainda não calibrado.' : 'Modelo numérico indisponível.';
-    $('fixture-preview').textContent = `${packet.fixture.home} vs. ${packet.fixture.away}\n${packet.competition} · ${packet.fixture.date}\n${ready}\nHistórico da liga: ${packet.historicalMatchesInLeague} jogos\nEstado: ${packet.fixture.status}\nSem feed em direto.`;
+    const ready = packet.modelReady ? 'Modelo numérico disponível (experimental; sem calibração).' : 'Modelo numérico com cobertura insuficiente.';
+    const q=packet.quality||{};
+    const home=`Casa ${packet.fixture.home}: ${q.homeGames??0} jogos (${q.homeVenue??0} em casa)`;
+    const away=`Fora ${packet.fixture.away}: ${q.awayGames??0} jogos (${q.awayVenue??0} fora)`;
+    const reasons=packet.modelReady?'':('\nLimitações: '+(packet.modelLimitations||[]).join('; '));
+    $('fixture-preview').textContent = `${packet.fixture.home} vs. ${packet.fixture.away}\n${packet.competition} · ${packet.fixture.date}\n${home}\n${away}\n${ready} · ${(packet.candidateMarkets||[]).length} mercados para cotar${reasons}\nHistórico geral da liga: ${packet.historicalMatchesInLeague} jogos\nEstado: ${packet.fixture.status} · Sem feed em direto.`;
   } catch (e) {
     statusNote(e.message);
   }
