@@ -16,5 +16,6 @@ if(fixture){
  console.log('CASA_SPORTING_ESTIMATE',JSON.stringify({ready:estimated.ready,reasons:estimated.reasons,quality:estimated.quality}));
  const {packet}=await createMatchContext({league:'P1',fixtureId:fixture.id},async()=>data);
  if(packet.candidateMarkets.length===0)throw Error('Real provider has history but candidateMarkets is empty');
+ console.log('CASA_MARKET_SHORTLIST',JSON.stringify(packet.candidateMarkets.map(m=>({name:m.name,prob:m.modelProbability,low:m.scenarioLow,minimum:m.thresholdOddExperimental,audit:m.historicalAudit?.status}))));
  console.log('CASA_SPORTING_PACKET',JSON.stringify({ready:packet.modelReady,limits:packet.modelLimitations,history:{home:packet.historySummary.home.leagueGames,away:packet.historySummary.away.leagueGames},markets:packet.candidateMarkets.slice(0,6),status:packet.fixture.status}));
 }
