@@ -54,3 +54,14 @@ Este projeto transforma o Football Value Lab 5.1 (Gemini) numa aplicação web, 
 - [Vercel: funções Node.js](https://vercel.com/docs/functions/runtimes/node-js)
 - [Google AI Studio: chaves](https://aistudio.google.com/api-keys)
 - [Gemini API: preços e quota gratuita](https://ai.google.dev/gemini-api/docs/pricing)
+
+
+## Atualização v5.4 — seleção e validação de odd
+
+- O assistente mostra uma seleção principal para cotar, com justificações concisas. Não transforma automaticamente a seleção numa entrada.
+- Depois de introduzires a odd REAL da casa, clica em **Validar odd (sem gastar Gemini)**. O servidor analisa preço e probabilidade; uma odd inferior ao mínimo do modelo é OBSERVAR — NÃO ENTRAR.
+- Se a probabilidade implícita na odd e a estimativa do modelo divergirem muito a favor do modelo, o resultado é REVER MODELO — NÃO ENTRAR, pois não existe validação independente.
+- A cotação não é confirmada automaticamente e os modelos não estão calibrados: **nenhuma entrada é garantida**.
+- O histórico da análise é da liga, não de todas as competições, e os valores projetados de golos não são xG de remates.
+- Foi evitada a 13.ª função na Vercel Hobby: a validação reutiliza POST /api/ai/preview.
+- Para verificar o código e testes: `npm test` (123 testes no ambiente de desenvolvimento).

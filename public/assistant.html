@@ -1,64 +1,133 @@
 <!doctype html>
 <html lang="pt-PT">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#08131a">
-<title>Football Value Lab Web 5.8 · Centro de oportunidades</title>
-<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assistant.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Football Value Lab Web 5.9 · Assistente IA</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/assistant.css">
 </head>
 <body>
-<div class="app">
- <aside class="sidebar">
-  <a class="logo" href="/ai" aria-label="Football Value Lab"><span class="mark">V</span><span><strong>FOOTBALL<span class="lime"> VALUE</span></strong><small>INTELLIGENCE LAB · V5.8</small></span></a>
-  <div class="side-section">ESPAÇO DE ANÁLISE</div>
-  <nav aria-label="Secções">
-   <a class="nav active" href="#workspace"><span>◈</span> Jogo</a>
-   <a class="nav" href="#opportunities"><span>◎</span> Oportunidades</a>
-   <a class="nav" href="#history"><span>▥</span> Estatísticas</a>
-   <a class="nav" href="#analyst"><span>✦</span> Assistente IA</a>
-  </nav>
-  <div class="sidebar-note"><span class="status-dot"></span><span id="api-state">A verificar Gemini…</span><p>Preços de casas introduzidos por ti. Sem feed de apostas ou eventos em direto.</p></div>
- </aside>
- <main>
-  <header class="topbar"><div class="crumb">LABORATÓRIO <span>/</span> CENTRO DE OPORTUNIDADES</div><div class="top-date" id="today"></div></header>
-  <section class="hero">
-   <div><span class="eyebrow">ANÁLISE PRÉ-JOGO · NOVA INTERFACE</span><h1>Uma boa aposta começa <em>no preço.</em></h1>
-    <p>Escolhe um jogo, compara várias odds reais e consulta a conclusão do motor. A IA explica as oportunidades e os riscos — não inventa uma entrada quando faltam preços.</p>
-   </div><div class="hero-stat"><span>O QUE PROCURAMOS</span><strong>Valor, não volume.</strong><small>Probabilidades experimentais · Sem garantia de lucro</small></div>
-  </section>
-  <section id="workspace" class="panel fixture-panel">
-   <div class="panel-head"><div><span class="step">01 / JOGO</span><h2>Escolher partida</h2></div><span class="hint" id="fixture-count">A carregar calendário…</span></div>
-   <div class="fixture-controls">
-    <div><label for="league">Competição</label><select id="league"><option value="">A carregar…</option></select></div>
-    <div><label for="filter">Pesquisar equipa</label><input id="filter" placeholder="Benfica, Porto, Barcelona…" autocomplete="off"></div>
-    <div class="fixture-select"><label for="fixture">Próximos jogos</label><select id="fixture"><option value="">Seleciona uma competição</option></select></div>
-    <button id="refresh" class="icon-button" type="button" title="Atualizar calendário" aria-label="Atualizar calendário">↻</button>
-   </div>
-   <div class="fixture-bottom"><div id="fixture-preview" class="fixture-summary">Escolhe uma partida futura para começar.</div><span id="live-flag" class="match-flag">SEM FEED LIVE</span></div>
-   <p id="problem" class="error" hidden role="alert"></p>
-  </section>
-  <section id="opportunities" class="opportunities-section">
-   <div class="section-heading"><div><span class="step">02 / MERCADOS & ODDS</span><h2>Onde pode estar a oportunidade?</h2><p>Os mercados são hipóteses até introduzires preços reais. As odds mínimas são estimativas do modelo, não cotações das casas.</p></div>
-    <div class="section-actions"><span id="market-count" class="count-chip">0 mercados</span><button id="analyze" type="button" class="primary">✦ Analisar com Gemini</button></div></div>
-   <section id="decision-summary" class="decision-summary" aria-live="polite"><span class="decision-eyebrow">AVALIAÇÃO DA PARTIDA</span><h3>À procura de uma oportunidade?</h3><p>Seleciona um jogo e introduz as odds da tua casa. Depois de comparar os preços, apresentamos uma conclusão clara.</p></section>
-   <div id="quote-board" class="quote-board" aria-live="polite"><div class="empty-markets"><strong>Escolhe um jogo acima</strong><p>O motor vai preparar mercados para comparares, sem recomendar uma aposta antes de saber a odd.</p></div></div>
-   <section id="batch-verdict" class="batch-verdict" hidden aria-live="polite"></section>
-   <details class="manual-details"><summary>Comparar outro mercado individualmente <span>▾</span></summary>
-    <div class="manual-grid"><div><label for="market">Mercado</label><select id="market"><option value="">Sem mercado escolhido</option></select></div><div><label for="price">Odd da casa</label><input id="price" placeholder="Ex.: 2,05" inputmode="decimal"></div><button id="check-price" type="button" class="secondary-button">Validar preço</button></div>
-    <div id="price-verdict" class="price-verdict" hidden aria-live="polite"></div>
-   </details>
-  </section>
-  <section class="detail-grid">
-   <section id="history" class="panel history-panel"><div class="panel-head"><div><span class="step">03 / DADOS</span><h2>Estatísticas verificáveis</h2></div><span class="subtle-chip">Só histórico da liga</span></div>
-    <div id="history-panel" class="history-content"><p class="empty-hint">Quando escolheres um jogo, aqui aparecem os últimos resultados e as médias disponíveis, com a cobertura de cada estatística.</p></div>
-   </section>
-   <section id="analyst" class="panel analyst-panel"><div class="panel-head"><div><span class="step">04 / GEMINI</span><h2 id="chat-title">Assistente de análise</h2></div><label class="research-toggle" title="Sujeito às quotas gratuitas do Gemini"><input id="research" type="checkbox"><span>Pesquisar notícias</span></label></div>
-    <div id="chat" class="chat" aria-live="polite"><div class="empty-chat"><span class="ai-mark">✦</span><h3>Uma segunda opinião, com contexto.</h3><p>Carrega em «Analisar com Gemini» para receber uma explicação curta dos mercados e riscos. Depois podes continuar a conversa.</p></div></div>
-    <form id="followup" class="compose"><input id="question" maxlength="1200" placeholder="Pergunta sobre golos, cantos, ausências…" disabled><button id="send" type="submit" disabled>Enviar</button></form>
-   </section>
-  </section>
-  <footer>Football Value Lab · Estimativas não calibradas e sem garantias de lucro. Odds fornecidas manualmente; confirma o mercado e a disponibilidade na casa antes de qualquer decisão. Sem feed desportivo em direto.</footer>
- </main>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="logo" href="/ai">
+      <span class="mark">V</span>
+      <div>
+        <strong>FOOTBALL VALUE LAB</strong>
+        <small>WEB · V5.9</small>
+      </div>
+    </a>
+    <div class="side-label">WORKSPACE</div>
+    <a class="nav-item active" href="/ai">✦ Assistente IA</a>
+    <div class="side-card">
+      <div class="side-card-title">Foco atual</div>
+      <p>Encontrar <b>entradas concretas</b>, mostrar <b>odd mínima</b> e dar-te rapidamente a melhor hipótese do jogo.</p>
+    </div>
+    <div class="side-status">
+      <span class="status-dot"></span>
+      <span id="api-state">A verificar integração IA...</span>
+      <p>Sem feed live. Estatísticas históricas + interpretação IA + odd manual da tua casa.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>FOOTBALL VALUE LAB / ASSISTENTE IA</div>
+      <div id="today"></div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">DESIGN 1 + 4 · MATCHDAY PRO + PREMIUM PICKS</div>
+        <h1>Menos vagueza.<br><em>Mais entradas utilizáveis.</em></h1>
+        <p>O objetivo é simples: escolher um jogo, ver a seleção principal, comparar a odd da tua casa e perceber em segundos se há oportunidade ou se é para largar.</p>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-pill">🎯 Entrada principal</div>
+        <div class="hero-pill">📈 Odd mínima do modelo</div>
+        <div class="hero-pill">🛡️ Cenário adverso</div>
+        <div class="hero-pill">💬 Follow-up com IA</div>
+      </div>
+    </section>
+
+    <div class="layout-grid">
+      <section class="control-panel card">
+        <div class="section-tag">01 / ESCOLHER O JOGO</div>
+        <label for="league">Competição</label>
+        <select id="league"><option value="">A carregar ligas...</option></select>
+
+        <label for="filter">Procurar equipa</label>
+        <input id="filter" placeholder="Ex.: Benfica, Liverpool, Barcelona" autocomplete="off">
+
+        <label for="fixture">Jogo disponível</label>
+        <select id="fixture"><option value="">Seleciona primeiro uma liga</option></select>
+        <button id="refresh" class="link-btn" type="button">↻ Atualizar calendário</button>
+
+        <div id="fixture-preview" class="fixture-summary">Escolhe uma partida para consultar os dados disponíveis.</div>
+
+        <label class="checkbox-row">
+          <input id="research" type="checkbox" checked>
+          <span>
+            <strong>Pesquisar notícias e contexto na web</strong>
+            <small>Lesões, convocados, onzes e alterações recentes quando existirem. Sujeito à disponibilidade do modelo.</small>
+          </span>
+        </label>
+
+        <div class="section-tag second">02 / COMPARAR A ODD</div>
+        <label for="market">Mercado a comparar</label>
+        <select id="market"><option value="">Sem mercado escolhido</option></select>
+
+        <label for="price">Odd da tua casa</label>
+        <input id="price" placeholder="Ex.: 1,85" inputmode="decimal">
+        <p class="muted">Primeiro escolhes o mercado. Depois introduzes a odd real e o sistema diz-te se esse preço merece atenção.</p>
+
+        <button id="check-price" class="ghost-btn" type="button">✓ Validar odd</button>
+        <div id="price-verdict" class="price-verdict" hidden aria-live="polite"></div>
+
+        <button id="analyze" class="primary-btn" type="button">✦ Gerar entrada principal</button>
+        <p id="problem" class="error" hidden></p>
+      </section>
+
+      <section class="analysis-panel">
+        <section id="match-stage" class="match-stage card empty">
+          <div class="section-tag">03 / OPORTUNIDADE DO JOGO</div>
+          <div class="stage-empty">
+            <div class="stage-orb">✦</div>
+            <h2>À espera de um jogo</h2>
+            <p>Quando escolheres uma partida, esta área passa a mostrar o confronto, a entrada principal, as alternativas e o racional do motor.</p>
+          </div>
+        </section>
+
+        <section id="quote-board" class="entries-board card" hidden aria-live="polite"></section>
+
+        <section class="chat-panel card">
+          <div class="chat-header">
+            <div>
+              <div class="section-tag">04 / ANALISTA IA</div>
+              <h2 id="chat-title">Discussão do jogo</h2>
+            </div>
+            <span id="live-flag" class="status-badge">PRÉ-JOGO · SEM LIVE FEED</span>
+          </div>
+          <div id="chat" class="chat-stream">
+            <div class="empty-chat">
+              <div class="stage-orb">✦</div>
+              <h3>Assistente pronto</h3>
+              <p>Depois de gerar a seleção principal, podes pedir explicações, cenários alternativos e comentários ao preço da tua casa.</p>
+            </div>
+          </div>
+          <form id="followup" class="compose">
+            <input id="question" type="text" maxlength="1200" placeholder="Pergunta sobre golos, cantos, riscos, lesões, contexto..." disabled>
+            <button id="send" type="submit" disabled>Enviar ↗</button>
+          </form>
+        </section>
+      </section>
+    </div>
+
+    <footer class="footer-note">
+      <b>Importante:</b> o sistema deve apontar uma seleção concreta sempre que os dados o permitirem, mas isso não transforma previsões em certezas. Sem feed live e sem odds oficiais automáticas nesta área, a validação final depende sempre da odd real que tu introduzes.
+    </footer>
+  </main>
 </div>
 <script type="module" src="/assistant.js"></script>
-</body></html>
+</body>
+</html>

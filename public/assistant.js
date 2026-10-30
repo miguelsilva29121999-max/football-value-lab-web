@@ -1,264 +1,457 @@
-const $=id=>document.getElementById(id);
-const localToday=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const formatOdd=n=>Number.isFinite(Number(n))?Number(n).toFixed(2).replace('.',','):'—';
-const formatPct=n=>Number.isFinite(Number(n))?(Number(n)*100).toFixed(1).replace('.',',')+'%':'—';
-const textEl=(tag,text,cls)=>{const node=document.createElement(tag);node.textContent=text;if(cls)node.className=cls;return node;};
-let leagues={},fixtures=[],packet=null,currentFixture=null,conversation=[],running=false;
-let priceDrafts=new Map();
-const statusNote=value=>{$('problem').textContent=value;$('problem').hidden=!value;};
-const requestWithAccess=async(url,init={})=>{
- const send=()=>{const code=sessionStorage.getItem('fvl_site_code');const headers=new Headers(init.headers||{});if(code)headers.set('x-fvl-access-code',code);return fetch(url,{...init,headers});};
- let res=await send();
- if(res.status===401){
-  const code=window.prompt('Football Value Lab — código de acesso privado da Vercel:');
-  if(!code)throw Error('Acesso ao site cancelado.');
-  sessionStorage.setItem('fvl_site_code',code);res=await send();
-  if(res.status===401)sessionStorage.removeItem('fvl_site_code');
- }
- return res;
+const $ = id => document.getElementById(id);
+let leagues = {}, fixtures = [], currentFixture = null, packet = null, conversation = [], running = false;
+
+const statusNote = msg => {
+  const box = $('problem');
+  if (!msg) {
+    box.hidden = true;
+    box.textContent = '';
+    return;
+  }
+  box.hidden = false;
+  box.textContent = msg;
 };
-const fetchJSON=async(url,init)=>{const res=await requestWithAccess(url,init);const data=await res.json().catch(()=>({}));if(!res.ok)throw Error(data.error||'Erro HTTP '+res.status);return data;};
-const post=(url,data)=>fetchJSON(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
-const addOption=(select,value,label)=>{const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);};
-function setDecision(status,headline,explanation,metrics=[]){
- const d=$('decision-summary');d.replaceChildren();d.dataset.status=status;
- d.append(textEl('span',status==='POTENCIAL'?'PREÇO EXPERIMENTAL · NÃO VALIDADO':status==='REVER_MODELO'?'REVISÃO NECESSÁRIA':status==='SEM_ENTRADA'?'DECISÃO · NÃO ENTRAR':'AVALIAÇÃO DA PARTIDA','decision-eyebrow'),
-  textEl('h3',headline),textEl('p',explanation));
- if(metrics.length){const row=textEl('div','','decision-metrics');for(const m of metrics)row.append(textEl('span',m));d.append(row);}
+
+const fetchJSON = async (url, options={}) => {
+  const res = await fetch(url, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Error(data.error || `Erro HTTP ${res.status}`);
+  return data;
+};
+const post = (url, data) => fetchJSON(url, {
+  method: 'POST',
+  headers: {'content-type':'application/json'},
+  body: JSON.stringify(data)
+});
+
+function addOption(select, value, label) {
+  const opt = document.createElement('option');
+  opt.value = value;
+  opt.textContent = label;
+  select.appendChild(opt);
 }
-function clearEvaluation(){
- $('batch-verdict').hidden=true;$('batch-verdict').replaceChildren();
- $('price-verdict').hidden=true;$('price-verdict').replaceChildren();
- for(const card of $('quote-board').querySelectorAll('.quote-item')){delete card.dataset.evaluation;const v=card.querySelector('.quote-outcome');if(v)v.remove();}
- setDecision('PENDING','Ainda não há uma entrada avaliada','Introduz odds reais da tua casa nos mercados abaixo e carrega em «Comparar odds». O modelo não sabe que preços estão disponíveis.');
+
+function toPct(v){ return Number.isFinite(v) ? `${Math.round(v*100)}%` : '—'; }
+function toOdd(v){ return Number.isFinite(Number(v)) ? Number(v).toFixed(2).replace('.', ',') : '—'; }
+function sanitize(text=''){
+  return String(text)
+    .replace(/^[ \t]*#{1,6}[ \t]*/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '$1')
+    .trim();
 }
-function validFixtures(rows){
- const today=localToday(),seen=new Set();
- return (rows||[]).filter(f=>{
-  if(!f?.date||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(f.date)||f.date<today)return false;
-  const key=f.date+'|'+String(f.home).toLowerCase()+'|'+String(f.away).toLowerCase();
-  if(seen.has(key))return false;seen.add(key);return true;
- }).sort((a,b)=>a.date.localeCompare(b.date)||(a.home||'').localeCompare(b.home||''));
+function hashCode(str=''){
+  let h=0;
+  for(const ch of str) h=((h<<5)-h)+ch.charCodeAt(0), h|=0;
+  return Math.abs(h);
 }
+function badgeLetters(name=''){
+  const parts = String(name).split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'FV';
+  if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+}
+function badgeStyle(name=''){
+  const hue = hashCode(name) % 360;
+  return `background:linear-gradient(135deg,hsl(${hue} 75% 72%),hsl(${(hue+45)%360} 70% 60%));`;
+}
+
+function setBusy(v){
+  running = v;
+  $('analyze').disabled = v;
+  $('send').disabled = v || !conversation.length;
+  $('question').disabled = v || !conversation.length;
+}
+
+function resetStage(){
+  $('match-stage').classList.add('empty');
+  $('match-stage').innerHTML = `
+    <div class="section-tag">03 / OPORTUNIDADE DO JOGO</div>
+    <div class="stage-empty">
+      <div class="stage-orb">✦</div>
+      <h2>À espera de um jogo</h2>
+      <p>Quando escolheres uma partida, esta área passa a mostrar o confronto, a entrada principal, as alternativas e o racional do motor.</p>
+    </div>`;
+  const board = $('quote-board');
+  board.hidden = true;
+  board.replaceChildren();
+}
+
+function renderMatchStageFromFixture(){
+  if (!currentFixture) return resetStage();
+  $('match-stage').classList.remove('empty');
+  $('match-stage').innerHTML = `
+    <div class="section-tag">03 / OPORTUNIDADE DO JOGO</div>
+    <div class="match-overview">
+      <div class="teams-row">
+        <div class="team-block">
+          <div class="team-crest" style="${badgeStyle(currentFixture.home)}">${badgeLetters(currentFixture.home)}</div>
+          <div>
+            <div class="team-name">${currentFixture.home}</div>
+            <div class="team-sub">Casa</div>
+          </div>
+        </div>
+        <div class="vs-chip">${currentFixture.date || ''}</div>
+        <div class="team-block right">
+          <div>
+            <div class="team-name">${currentFixture.away}</div>
+            <div class="team-sub">Fora</div>
+          </div>
+          <div class="team-crest" style="${badgeStyle(currentFixture.away)}">${badgeLetters(currentFixture.away)}</div>
+        </div>
+      </div>
+      <div class="top-pick">
+        <div>
+          <div class="top-pick-title">SELEÇÃO PRINCIPAL</div>
+          <div class="pick-name">A aguardar modelação</div>
+          <div class="pick-why">Escolhe o jogo e carrega em <b>Gerar entrada principal</b>. O sistema vai procurar uma oportunidade concreta e mostrar também alternativas.</div>
+          <div class="pick-risk"><b>Risco principal:</b> ainda sem análise gerada.</div>
+        </div>
+        <div class="pick-stats">
+          <div class="stat-card"><div class="label">Prob. modelo</div><div class="value">—</div></div>
+          <div class="stat-card"><div class="label">Cenário baixo</div><div class="value">—</div></div>
+          <div class="stat-card"><div class="label">Odd mínima</div><div class="value small">—</div></div>
+          <div class="stat-card"><div class="label">Estado</div><div class="value small">Pré-jogo</div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function buildEntryDescription(candidate, position){
+  const notes = (candidate.notes || []).filter(Boolean);
+  let base = position === 0
+    ? 'É a linha mais utilizável do motor neste jogo, com melhor equilíbrio entre probabilidade, cenário adverso e atratividade potencial.'
+    : 'Alternativa modelada para o mesmo jogo, útil se a seleção principal estiver mal cotada na tua casa.';
+  if (notes.length) base += ` Atenção: ${notes[0]}`;
+  return base;
+}
+
+function renderPrimaryHero(primary){
+  const stage = $('match-stage');
+  if (!packet || !currentFixture) return;
+  const projected = packet.projectedGoalsFromResults || {};
+  stage.classList.remove('empty');
+  stage.innerHTML = `
+    <div class="section-tag">03 / OPORTUNIDADE DO JOGO</div>
+    <div class="match-overview">
+      <div class="teams-row">
+        <div class="team-block">
+          <div class="team-crest" style="${badgeStyle(packet.fixture.home)}">${badgeLetters(packet.fixture.home)}</div>
+          <div>
+            <div class="team-name">${packet.fixture.home}</div>
+            <div class="team-sub">Casa · ${packet.competition}</div>
+          </div>
+        </div>
+        <div class="vs-chip">${packet.fixture.date} · ${packet.fixture.status.replaceAll('_',' ')}</div>
+        <div class="team-block right">
+          <div>
+            <div class="team-name">${packet.fixture.away}</div>
+            <div class="team-sub">Fora · sem live feed</div>
+          </div>
+          <div class="team-crest" style="${badgeStyle(packet.fixture.away)}">${badgeLetters(packet.fixture.away)}</div>
+        </div>
+      </div>
+      <div class="top-pick">
+        <div>
+          <div class="top-pick-title">ENTRADA PRINCIPAL PARA COTAR</div>
+          <div class="pick-name">${primary ? primary.name : 'Sem entrada justificada'}</div>
+          <div class="pick-why">${primary ? buildEntryDescription(primary, 0) : 'O motor não encontrou um mercado suficientemente utilizável com os dados atuais.'}</div>
+          <div class="pick-risk"><b>Risco principal:</b> ${primary?.notes?.[0] || 'probabilidades experimentais não calibradas; confirma sempre contexto e odd real.'}</div>
+        </div>
+        <div class="pick-stats">
+          <div class="stat-card"><div class="label">Prob. modelo</div><div class="value">${primary ? toPct(primary.modelProbability) : '—'}</div></div>
+          <div class="stat-card"><div class="label">Cenário baixo</div><div class="value">${primary ? toPct(primary.scenarioLow) : '—'}</div></div>
+          <div class="stat-card"><div class="label">Odd mínima</div><div class="value small">${primary ? toOdd(primary.thresholdOddExperimental) : '—'}</div></div>
+          <div class="stat-card"><div class="label">Golos proj.</div><div class="value small">${Number.isFinite(projected.home)&&Number.isFinite(projected.away) ? `${projected.home.toFixed(2).replace('.',',')} / ${projected.away.toFixed(2).replace('.',',')}` : '—'}</div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function showMarketsToQuote(packetData){
+  const board = $('quote-board');
+  board.replaceChildren();
+  board.hidden = false;
+  const arr = (packetData.candidateMarkets || []).slice(0, 4);
+  renderPrimaryHero(arr[0]);
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div class="board-head">
+      <div>
+        <div class="section-tag">MERCADOS SELECIONADOS</div>
+        <h3>${arr.length ? 'Entradas para comparar na tua casa' : 'Sem entrada justificada'}</h3>
+        <div class="board-sub">Aqui tens uma seleção principal e alternativas. O foco já não é despejar estatísticas; é mostrar-te mercados concretos com a odd mínima exigida pelo modelo.</div>
+      </div>
+      <div class="tag info">Histórico liga: ${packetData.historicalMatchesInLeague || 0} jogos</div>
+    </div>`;
+  board.appendChild(wrapper);
+
+  if (!arr.length) {
+    const empty = document.createElement('div');
+    empty.className = 'decision-panel';
+    empty.dataset.decision = 'OBSERVAR';
+    empty.innerHTML = `<div class="decision-title">SEM ENTRADA JUSTIFICADA</div><div class="decision-body">Não foi possível destacar um mercado utilizável com os dados atuais. Podes ainda conversar com o assistente, mas o site não deve inventar uma aposta.</div>`;
+    board.appendChild(empty);
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'entry-grid';
+  arr.forEach((c, index) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `entry-card ${index===0 ? 'main' : ''}`;
+    card.innerHTML = `
+      <div class="entry-kicker">${index===0 ? 'SELEÇÃO PRINCIPAL' : 'ALTERNATIVA ' + index}</div>
+      <div class="entry-title">${c.name}</div>
+      <div class="entry-desc">${buildEntryDescription(c, index)}</div>
+      <div class="entry-metrics">
+        <div class="mini"><div class="label">Probabilidade</div><div class="value">${toPct(c.modelProbability)}</div></div>
+        <div class="mini"><div class="label">Cenário baixo</div><div class="value">${toPct(c.scenarioLow)}</div></div>
+        <div class="mini"><div class="label">Odd mínima</div><div class="value">${toOdd(c.thresholdOddExperimental)}</div></div>
+      </div>
+      <div class="entry-actions">
+        <span class="tag good">Para cotar</span>
+        <span class="tag info">Clique para validar</span>
+        ${(c.notes||[]).length ? '<span class="tag warn">Atenção ao risco</span>' : ''}
+      </div>`;
+    card.addEventListener('click', () => {
+      $('market').value = c.id;
+      $('price').focus();
+      document.querySelectorAll('.entry-card').forEach(el => el.classList.remove('selected'));
+      card.classList.add('selected');
+    });
+    grid.appendChild(card);
+  });
+  board.appendChild(grid);
+
+  const selected = $('market');
+  if (arr[0]?.id) selected.value = arr[0].id;
+}
+
+function addMessage(role, text, links = []){
+  const empty = $('chat').querySelector('.empty-chat');
+  if (empty) empty.remove();
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${role}`;
+  bubble.innerHTML = `<div class="who">${role === 'assistant' ? '✦ ASSISTENTE IA' : 'A TUA PERGUNTA'}</div><div class="body"></div>`;
+  bubble.querySelector('.body').textContent = sanitize(text);
+  if (links.length) {
+    const sourceBox = document.createElement('div');
+    sourceBox.className = 'sources';
+    sourceBox.textContent = 'Fontes encontradas:';
+    links.forEach(link => {
+      if (!/^https:\/\//.test(link?.url || '')) return;
+      const a = document.createElement('a');
+      a.href = link.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = link.title || link.url;
+      sourceBox.appendChild(a);
+    });
+    bubble.appendChild(sourceBox);
+  }
+  $('chat').appendChild(bubble);
+  bubble.scrollIntoView({behavior:'smooth',block:'end'});
+}
+
 function showFixture(){
- const search=$('filter').value.trim().toLocaleLowerCase('pt-PT'),sel=$('fixture');
- const previous=sel.value;const filtered=fixtures.filter(f=>(f.home+' '+f.away).toLocaleLowerCase('pt-PT').includes(search));
- sel.replaceChildren();addOption(sel,'','Seleciona uma partida');
- for(const f of filtered)addOption(sel,f.id,f.date+' · '+f.home+' — '+f.away);
- if(filtered.some(f=>f.id===previous))sel.value=previous;
- else if(filtered.length===1)sel.value=filtered[0].id;
- $('fixture-count').textContent=filtered.length+' jogos futuros'+(search?' encontrados':'');
- if(currentFixture?.id===sel.value&&sel.value)return;
- selectedFixture();
- if(currentFixture)preview();
+  const search = $('filter').value.trim().toLocaleLowerCase('pt-PT');
+  const select = $('fixture');
+  const previous = select.value;
+  select.replaceChildren();
+  addOption(select, '', 'Seleciona uma partida');
+  const filtered = fixtures.filter(f => (`${f.home} ${f.away}`).toLocaleLowerCase('pt-PT').includes(search));
+  filtered.forEach(f => addOption(select, f.id, `${f.date} · ${f.home} — ${f.away}`));
+  if (filtered.some(f => f.id === previous)) select.value = previous;
+  else if (filtered.length === 1) select.value = filtered[0].id;
+  selectedFixture();
 }
+
 function selectedFixture(){
- currentFixture=fixtures.find(f=>f.id===$('fixture').value)||null;
- packet=null;conversation=[];priceDrafts=new Map();
- $('quote-board').replaceChildren();$('batch-verdict').hidden=true;$('batch-verdict').replaceChildren();
- $('market').replaceChildren();addOption($('market'),'','Seleciona um mercado');
- $('price').value='';$('price-verdict').hidden=true;$('price-verdict').replaceChildren();
- $('market-count').textContent='0 mercados';$('chat').replaceChildren();
- $('chat-title').textContent=currentFixture?'Análise IA · '+currentFixture.home+' vs. '+currentFixture.away:'Assistente de análise';
- $('question').disabled=true;$('send').disabled=true;
- $('fixture-preview').textContent=currentFixture?currentFixture.home+' — '+currentFixture.away+' · '+currentFixture.date+' · Hora '+(currentFixture.time||'por confirmar'):'Escolhe uma partida futura para começar.';
- $('live-flag').textContent='SEM FEED LIVE';
- $('history-panel').replaceChildren();$('history-panel').append(textEl('p','Seleciona um jogo para consultar os resultados anteriores da liga.','empty-hint'));
- $('quote-board').append(textEl('div','Seleciona uma partida para carregar os mercados.','empty-markets'));
- setDecision('PENDING','Primeiro, escolhe a partida','Os mercados disponíveis e a sua cobertura estatística vão aparecer depois de selecionares o jogo.');
+  currentFixture = fixtures.find(f => f.id === $('fixture').value) || null;
+  packet = null;
+  conversation = [];
+  $('market').replaceChildren();
+  addOption($('market'), '', 'Sem mercado escolhido');
+  $('price-verdict').hidden = true;
+  $('price-verdict').replaceChildren();
+  $('chat-title').textContent = currentFixture ? `${currentFixture.home} — ${currentFixture.away}` : 'Discussão do jogo';
+  $('question').disabled = true;
+  $('send').disabled = true;
+
+  $('fixture-preview').textContent = currentFixture
+    ? `Jogo: ${currentFixture.home} vs. ${currentFixture.away}\nData: ${currentFixture.date}\nHora: ${currentFixture.time || 'Não confirmada'}\nFonte: ${currentFixture.source || 'calendário'}`
+    : 'Seleciona um jogo. Não é possível confirmar que o jogo ainda não começou sem uma hora válida.';
+
+  $('chat').innerHTML = `<div class="empty-chat"><div class="stage-orb">✦</div><h3>Assistente pronto</h3><p>Depois de gerar a seleção principal, podes pedir explicações, cenários alternativos e comentários ao preço da tua casa.</p></div>`;
+  renderMatchStageFromFixture();
+  $('quote-board').hidden = true;
+  $('quote-board').replaceChildren();
 }
+
 async function loadFixtures(){
- const league=$('league').value;
- fixtures=[];currentFixture=null;packet=null;statusNote('');
- $('fixture').replaceChildren();addOption($('fixture'),'','A carregar jogos futuros…');
- if(!league){showFixture();return;}
- try{
-  const data=await fetchJSON('/api/fixtures?league='+encodeURIComponent(league));
-  fixtures=validFixtures(data.fixtures);
-  showFixture();
-  if(!fixtures.length)statusNote('Sem partidas futuras nesta competição. Podes escolher outra liga ou atualizar o calendário.');
-  else if(data.issues?.length)console.info('Cobertura do calendário:',data.issues);
- }catch(error){showFixture();statusNote('Falha a carregar calendário: '+error.message);}
+  const league = $('league').value;
+  $('fixture').replaceChildren();
+  addOption($('fixture'), '', 'A carregar...');
+  fixtures = [];
+  packet = null;
+  if (!league) {
+    showFixture();
+    return;
+  }
+  statusNote('');
+  try {
+    const data = await fetchJSON('/api/fixtures?league=' + encodeURIComponent(league));
+    fixtures = data.fixtures || [];
+    showFixture();
+    if (!fixtures.length) statusNote('Esta fonte não tem jogos futuros listados nesta liga. Tenta outra competição.');
+  } catch (e) {
+    showFixture();
+    statusNote('Erro a recolher jogos: ' + e.message);
+  }
 }
-function renderHistory(data){
- const el=$('history-panel');el.replaceChildren();
- const h=data.historySummary;
- if(!h){el.append(textEl('p','Sem histórico verificável nesta fonte.','empty-hint'));return;}
- el.append(textEl('p','Amostra da liga: '+h.totalLeagueGames+' partidas. Só jogos anteriores à data do encontro; não são todas as competições.','history-intro'));
- const display=v=>v?.value==null?'indisponível':formatOdd(v.value)+' ('+v.coverage+'/'+v.total+' jogos)';
- for(const [name,team] of [['Casa',h.home],['Fora',h.away]]){
-  const card=textEl('article','','history-team');
-  card.append(textEl('b',team.team+' · '+name+' · '+team.leagueGames+' jogos no histórico'));
-  const a=team.lastFive.averages;
-  card.append(textEl('p','Últimos cinco da liga · Golos marcados: '+display(a.scored)+' · Sofridos: '+display(a.conceded)+' · Cantos: '+display(a.corners),'history-statline'));
-  card.append(textEl('p','Remates: '+display(a.shots)+' · À baliza: '+display(a.shotsOnTarget),'history-statline'));
-  const games=team.lastFive.games.map(m=>m.date+'  '+m.home+' '+m.hg+'–'+m.ag+' '+m.away).join('  •  ');
-  card.append(textEl('p',games||'Sem jogos anteriores registados.','history-games'));
-  const venue=team.lastFiveAtVenue.averages;
-  card.append(textEl('p','Últimos jogos '+(name==='Casa'?'em casa':'fora')+': '+team.lastFiveAtVenue.games.length+' · Golos marcados '+display(venue.scored)+' · Sofridos '+display(venue.conceded),'history-note'));
-  el.append(card);
- }
- el.append(textEl('p','As médias usam apenas partidas com a respetiva estatística disponível. Não se substituem ausências de dados por zero.','history-note'));
-}
-const isNoKickoff=fixture=>['INICIO_HOJE_NAO_CONFIRMADO','JOGO_JA_PODE_TER_COMECADO'].includes(fixture?.status);
-function renderCard(market,index,locked){
- const card=textEl('article','','quote-item');card.dataset.id=market.id;
- card.append(textEl('span',(index===0?'1.ª HIPÓTESE PARA COTAR':String(index+1)+'.ª HIPÓTESE')+' · NÃO É ENTRADA VALIDADA','quote-tag'));
- card.append(textEl('strong',market.name));
- const stats=textEl('div','','quote-stats');
- for(const [label,value] of [['Prob. do modelo',formatPct(market.modelProbability)],['Mínimo matemático',formatOdd(market.thresholdOddExperimental)]]){
-  const stat=textEl('div','','quote-metric');stat.append(textEl('span',label),textEl('b',value));stats.append(stat);
- }
- card.append(stats);
- const audit=market.historicalAudit;
- let note='';
- if(market.realismReview)note='O modelo diverge de preços indicativos: verificar probabilidade.';
- else if(audit?.status==='DESFAVORAVEL')note='Aviso: previsões anteriores deste mercado tiveram desempenho desfavorável.';
- else if(audit?.n>=25)note='Auditoria: '+audit.n+' previsões · Brier '+Number(audit.brier).toFixed(3)+' vs. referência '+Number(audit.baselineBrier).toFixed(3)+'.';
- else note='Probabilidade ainda não calibrada; sem referência preditiva suficiente.';
- card.append(textEl('div',note,'quote-meta'+(market.realismReview||audit?.status==='DESFAVORAVEL'?' warning':'')));
- if(market.marketReference)card.append(textEl('div','Referência indicativa: '+formatOdd(market.marketReference.indicativeOdd)+' (não é cotação atual).','quote-meta'));
- if(locked){card.append(textEl('div','Apenas consulta histórica · validar hora de início.','quote-outcome review'));return card;}
- const entry=textEl('div','','quote-entry');entry.append(textEl('label','Odd real da casa'));
- const input=document.createElement('input');input.className='quote-odd';input.inputMode='decimal';input.autocomplete='off';input.placeholder='Ex.: 2,05';
- input.setAttribute('aria-label','Odd real para '+market.name);input.value=priceDrafts.get(market.id)||'';
- input.addEventListener('input',()=>{
-  if(input.value.trim())priceDrafts.set(market.id,input.value);
-  else priceDrafts.delete(market.id);
-  clearEvaluation();
- });
- entry.append(input);card.append(entry);
- return card;
-}
-function showMarketsToQuote(data){
- const board=$('quote-board');board.replaceChildren();
- const markets=(data.candidateMarkets||[]).slice(0,8),locked=isNoKickoff(data.fixture);
- $('market-count').textContent=markets.length+' mercados para cotar';
- if(locked){
-  setDecision('REVER_MODELO','Dados disponíveis, mas sem validação pré-jogo','A partida é de hoje e não temos hora de início verificável, ou já pode estar a decorrer. Podes consultar estatísticas, mas não validar uma odd como se o jogo ainda não tivesse começado.');
- }else clearEvaluation();
- board.append(textEl('h3',locked?'ESTIMATIVAS HISTÓRICAS · SEM ENTRADA':'MERCADOS PARA COMPARAR · SEM ODD AINDA','quote-heading'));
- if(!markets.length){
-  board.append(textEl('div','Este jogo não tem mercados com suporte suficiente no motor atual. Consulta as estatísticas abaixo; não iremos criar uma entrada fictícia.','empty-markets'));return;
- }
- markets.forEach((market,i)=>board.append(renderCard(market,i,locked)));
- if(!locked){
-  const button=textEl('button','Comparar odds e escolher a melhor hipótese','compare-all');button.type='button';button.addEventListener('click',compareQuotedMarkets);board.append(button);
-  board.append(textEl('p','Introduz os preços em vários cartões para comparar. O resultado é experimental: um EV positivo não significa lucro comprovado.','quote-note'));
- }
-}
-function renderComparison(payload){
- const results=$('batch-verdict');results.replaceChildren();results.hidden=false;
- const first=payload.bestCandidate||payload.bestTheoreticalInReview||null;
- const status=payload.bestCandidate?'POTENCIAL':payload.bestTheoreticalInReview?'REVER_MODELO':'SEM_ENTRADA';
- if(first){
-  setDecision(status,first.market,status==='POTENCIAL'?'Esta é a melhor hipótese experimental entre as odds que introduziste. Não é uma entrada validada e o modelo ainda precisa de calibração.':'A odd supera o mínimo matemático, mas a previsão precisa de revisão. NÃO ENTRAR até termos melhor evidência.',
-   ['Odd da casa '+formatOdd(first.odd),'Mínimo teórico '+formatOdd(first.estimatedMinimumOdd),'EV central '+formatPct(first.estimatedEv),'Cenário adverso '+formatPct(first.estimatedEvLow)]);
- }else{
-  setDecision('SEM_ENTRADA','Sem entrada com estes preços','Nenhuma das odds introduzidas passou a triagem. É melhor rejeitar o jogo do que forçar uma aposta pouco fundamentada.');
- }
- results.append(textEl('strong',status==='POTENCIAL'?'COMPARAÇÃO · HIPÓTESE EXPERIMENTAL':status==='REVER_MODELO'?'COMPARAÇÃO · REVISÃO DO MODELO':'COMPARAÇÃO · SEM ENTRADA'));
- const map=new Map();
- for(const offer of payload.offers){
-  map.set(String(offer.optionId),offer);
-  const state=offer.decision==='POTENCIAL'?'Preço supera triagem — ainda não validado':offer.decision==='REVER_MODELO'?'Previsão em revisão — não entrar':'Não entrar';
-  const p=textEl('p',state+' · '+offer.market+' · Casa '+formatOdd(offer.odd)+' / mínimo '+formatOdd(offer.estimatedMinimumOdd)+' · EV central '+formatPct(offer.estimatedEv)+'. '+offer.reason);
-  results.append(p);
- }
- for(const card of $('quote-board').querySelectorAll('.quote-item')){
-  const offer=map.get(card.dataset.id);if(!offer)continue;
-  card.dataset.evaluation=offer.decision;
-  const state=offer.decision==='POTENCIAL'?'Preço experimentalmente interessante · não validado':offer.decision==='REVER_MODELO'?'Odd passa, previsão em revisão — não entrar':'Não entrar com este preço';
-  card.append(textEl('div',state,'quote-outcome '+(offer.decision==='POTENCIAL'?'pass':offer.decision==='REVER_MODELO'?'review':'reject')));
- }
- results.append(textEl('p',payload.notice,'quote-note'));
- if(payload.bestCandidate){
-  $('market').value=String(payload.bestCandidate.optionId);
-  $('price').value=String(payload.bestCandidate.odd).replace('.',',');
- }
- $('decision-summary').scrollIntoView({block:'nearest',behavior:'smooth'});
-}
-async function compareQuotedMarkets(){
- if(!currentFixture||!packet)return statusNote('Seleciona um jogo e carrega o quadro de mercados.');
- if(isNoKickoff(packet.fixture))return statusNote('Sem hora de início confirmada não podemos validar odds como pré-jogo.');
- const offers=[...priceDrafts.entries()].map(([optionId,odd])=>({optionId,odd})).filter(x=>String(x.odd).trim());
- if(!offers.length)return statusNote('Introduz pelo menos uma odd da tua casa num dos cartões.');
- const button=$('quote-board').querySelector('.compare-all');if(button)button.disabled=true;
- try{statusNote('');const result=await post('/api/ai/preview',{league:$('league').value,fixtureId:currentFixture.id,offers});renderComparison(result);}
- catch(err){statusNote('Falha ao comparar preços: '+err.message);}
- finally{if(button)button.disabled=false;}
-}
+
 async function preview(){
- const id=currentFixture?.id;if(!id)return;
- try{
-  const response=await post('/api/ai/preview',{league:$('league').value,fixtureId:id});
-  if(currentFixture?.id!==id)return;
-  packet=response.packet;showMarketsToQuote(packet);renderHistory(packet);
-  const select=$('market');select.replaceChildren();addOption(select,'','Seleciona um mercado');
-  for(const m of packet.candidateMarkets||[])addOption(select,m.id,m.name+' · mínimo '+formatOdd(m.thresholdOddExperimental));
-  $('live-flag').textContent=packet.fixture?.status==='INICIO_HOJE_NAO_CONFIRMADO'?'HORA NÃO CONFIRMADA HOJE':packet.fixture?.status==='JOGO_JA_PODE_TER_COMECADO'?'PODERÁ ESTAR A DECORRER':'PRÉ-JOGO · SEM FEED LIVE';
-  const scope=packet.modelReady?'Estatísticas de liga disponíveis · Probabilidades experimentais':'Cobertura insuficiente: '+(packet.modelLimitations||[]).join('; ');
-  $('fixture-preview').textContent=packet.fixture.home+' — '+packet.fixture.away+' · '+packet.fixture.date+' · '+scope;
- }catch(err){statusNote('Falha na análise inicial: '+err.message);}
+  const id = currentFixture?.id;
+  if (!id) return;
+  try {
+    const data = await post('/api/ai/preview', {league:$('league').value, fixtureId:id});
+    if (id !== currentFixture?.id) return;
+    packet = data.packet;
+    showMarketsToQuote(packet);
+    const marketSelect = $('market');
+    marketSelect.replaceChildren();
+    addOption(marketSelect, '', 'Sem mercado escolhido');
+    (packet.candidateMarkets || []).forEach(c => addOption(marketSelect, c.id, `${c.name} · odd mínima ${toOdd(c.thresholdOddExperimental)}`));
+    if (packet.primaryMarketToQuote?.id) marketSelect.value = packet.primaryMarketToQuote.id;
+
+    const ready = packet.modelReady ? 'Modelo numérico disponível, ainda não calibrado.' : 'Modelo numérico indisponível.';
+    $('fixture-preview').textContent = `${packet.fixture.home} vs. ${packet.fixture.away}\n${packet.competition} · ${packet.fixture.date}\n${ready}\nHistórico da liga: ${packet.historicalMatchesInLeague} jogos\nEstado: ${packet.fixture.status}\nSem feed em direto.`;
+  } catch (e) {
+    statusNote(e.message);
+  }
 }
-function addMessage(role,text,links=[]){
- const empty=$('chat').querySelector('.empty-chat');if(empty)empty.remove();
- const item=textEl('div','','bubble '+role);item.append(textEl('div',role==='assistant'?'✦ GEMINI · ANÁLISE':'A TUA PERGUNTA','who'));
- const clean=String(text).replace(/^\s*#{1,4}\s*/gm,'').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g,'$1');
- item.append(textEl('div',clean,'body'));
- const sources=(links||[]).filter(x=>/^https:\/\//.test(x?.url||''));
- if(sources.length){const wrap=textEl('div','Fontes consultadas:','sources');for(const source of sources.slice(0,7)){const a=document.createElement('a');a.href=source.url;a.textContent=source.title||source.url;a.rel='noopener noreferrer';a.target='_blank';wrap.append(a);}item.append(wrap);}
- $('chat').append(item);$('chat').scrollTop=$('chat').scrollHeight;
-}
-function setBusy(value){
- running=value;$('analyze').disabled=value;$('send').disabled=value||!conversation.length;$('question').disabled=value||!conversation.length;
-}
-async function ask(question='',reset=false){
- if(running||!currentFixture)return;
- if(!packet)await preview();
- if(!packet)return;
- if($('price').value.trim()&&!$('market').value){statusNote('Para incluir uma odd na pergunta, seleciona primeiro o mercado correspondente.');return;}
- const id=currentFixture.id;statusNote('');setBusy(true);
- if(reset){conversation=[];$('chat').replaceChildren();}else if(question)addMessage('user',question);
- const busy=textEl('div','A consultar o Gemini e a reunir o contexto…','loading');$('chat').append(busy);
- try{
-  const r=await post('/api/ai/chat',{league:$('league').value,fixtureId:id,question,history:conversation,
-   searchWeb:$('research').checked&&(reset||/not[ií]ci|les[aã]o|convocad|onze|meteorolog|tempo|atualiz|hoje|[úu]ltima/i.test(question)),
-   optionId:$('market').value||null,odd:$('price').value.trim()||null});
-  busy.remove();if(currentFixture?.id!==id)return;
-  addMessage('assistant',r.text,r.links);
-  if(question)conversation.push({role:'user',content:question});
-  conversation.push({role:'assistant',content:r.text.slice(0,1400)});conversation=conversation.slice(-6);
- }catch(err){busy.remove();statusNote(err.message);if(currentFixture?.id===id)addMessage('assistant','Não foi possível completar a análise: '+err.message);}
- finally{setBusy(false);$('question').disabled=!conversation.length;$('send').disabled=!conversation.length;}
-}
+
 async function validateCurrentPrice(){
- if(!currentFixture)return statusNote('Escolhe primeiro o jogo.');
- if(!packet)await preview();
- if(!packet)return;
- const optionId=$('market').value,odd=$('price').value.trim();
- if(!optionId||!odd)return statusNote('Seleciona um mercado e introduz a odd real.');
- try{
-  const response=await post('/api/ai/preview',{league:$('league').value,fixtureId:currentFixture.id,optionId,odd});
-  const data=response.manual,out=$('price-verdict');out.replaceChildren();out.hidden=false;
-  out.append(textEl('strong',data.decision==='POTENCIAL'?'Preço experimentalmente interessante · não validado':data.decision==='REVER_MODELO'?'Preço passa, mas previsão em revisão':'Não entrar com este preço'),
-    textEl('p','Casa '+formatOdd(data.odd)+' · mínimo do modelo '+formatOdd(data.estimatedMinimumOdd)+' · EV central '+formatPct(data.estimatedEv)+'. '+data.reason));
- }catch(err){statusNote('Não foi possível validar a odd: '+err.message);}
+  if (!currentFixture) {
+    statusNote('Escolhe um jogo.');
+    return;
+  }
+  if (!packet) await preview();
+  const optionId = $('market').value;
+  const odd = $('price').value.trim();
+  if (!optionId || !odd) {
+    statusNote('Seleciona o mercado e introduz a odd real da tua casa.');
+    return;
+  }
+  try {
+    statusNote('');
+    const data = await post('/api/ai/preview', {league:$('league').value, fixtureId:currentFixture.id, optionId, odd});
+    const manual = data.manual;
+    const verdict = $('price-verdict');
+    verdict.hidden = false;
+    verdict.dataset.decision = manual.decision;
+    verdict.innerHTML = `
+      <strong>${manual.decision === 'POTENCIAL' ? 'PREÇO POTENCIAL — NÃO VALIDADO' : manual.decision === 'REVER_MODELO' ? 'REVER MODELO — NÃO ENTRAR' : 'OBSERVAR — NÃO ENTRAR'}</strong>
+      <div>${manual.market}</div>
+      <div><b>Odd da tua casa:</b> ${toOdd(manual.odd)} · <b>Odd mínima do modelo:</b> ${toOdd(manual.estimatedMinimumOdd)}</div>
+      <div><b>Prob. modelo:</b> ${toPct(manual.modelProbability)} · <b>Prob. implícita do mercado:</b> ${toPct(manual.marketImpliedProbability)}</div>
+      <div>${manual.reason}</div>`;
+  } catch (e) {
+    statusNote('Não foi possível validar a odd: ' + e.message);
+  }
 }
-$('check-price').addEventListener('click',validateCurrentPrice);
-$('league').addEventListener('change',loadFixtures);
-$('filter').addEventListener('input',showFixture);
-$('fixture').addEventListener('change',()=>{selectedFixture();preview();});
-$('refresh').addEventListener('click',loadFixtures);
-$('analyze').addEventListener('click',async()=>{if(!currentFixture)return statusNote('Seleciona primeiro uma partida.');if(!packet)await preview();if(packet)await ask('',true);});
-$('followup').addEventListener('submit',event=>{event.preventDefault();const question=$('question').value.trim();if(!question)return;$('question').value='';ask(question);});
-document.querySelectorAll('.sidebar nav .nav').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.sidebar nav .nav').forEach(x=>x.classList.remove('active'));a.classList.add('active');}));
-(async()=>{
- try{
-  const data=await fetchJSON('/api/status');leagues=data.leagues||{};const select=$('league');select.replaceChildren();
-  addOption(select,'','Seleciona uma competição');for(const [code,l] of Object.entries(leagues))addOption(select,code,l.country+' · '+l.name);
-  const ai=await fetchJSON('/api/ai/status');$('api-state').textContent=ai.configured?'Gemini configurado · '+ai.model:'Gemini sem chave · configurar na Vercel';
-  $('today').textContent=new Date().toLocaleDateString('pt-PT',{timeZone:'Europe/Lisbon',day:'2-digit',month:'long',year:'numeric'});
-  select.value='P1';await loadFixtures();
- }catch(error){statusNote('Não foi possível iniciar a aplicação: '+error.message);}
+
+async function ask(question='', reset=false){
+  if (running || !currentFixture) return;
+  if ($('price').value.trim() && !$('market').value) {
+    statusNote('Para validar uma odd, escolhe primeiro o mercado correspondente. Ou apaga a odd para pedir só a análise.');
+    return;
+  }
+  setBusy(true);
+  statusNote('');
+
+  if (reset) {
+    $('chat').innerHTML = '';
+    conversation = [];
+  } else if (question) {
+    addMessage('user', question);
+  }
+
+  const loading = document.createElement('div');
+  loading.className = 'loading';
+  loading.textContent = 'A analisar os dados do jogo, a procurar o melhor mercado e a preparar a resposta…';
+  $('chat').appendChild(loading);
+
+  try {
+    const response = await post('/api/ai/chat', {
+      league: $('league').value,
+      fixtureId: currentFixture.id,
+      question,
+      history: conversation,
+      searchWeb: $('research').checked && (reset || /not[ií]ci|les[aã]o|convocad|onze|meteorolog|tempo|atualiz|hoje|última|ultima/i.test(question)),
+      optionId: $('market').value || null,
+      odd: $('price').value.trim() || null
+    });
+    loading.remove();
+    addMessage('assistant', response.text, response.links);
+    if (question) conversation.push({role:'user', content:question});
+    conversation.push({role:'assistant', content:String(response.text).slice(0, 1400)});
+    conversation = conversation.slice(-6);
+    $('question').disabled = false;
+    $('send').disabled = false;
+  } catch (e) {
+    loading.remove();
+    statusNote(e.message);
+    addMessage('assistant', 'Não foi possível completar a análise: ' + e.message);
+  } finally {
+    setBusy(false);
+    $('question').disabled = !conversation.length;
+    $('send').disabled = !conversation.length;
+  }
+}
+
+$('check-price').addEventListener('click', validateCurrentPrice);
+$('league').addEventListener('change', loadFixtures);
+$('filter').addEventListener('input', showFixture);
+$('fixture').addEventListener('change', async () => { selectedFixture(); await preview(); });
+$('refresh').addEventListener('click', loadFixtures);
+$('analyze').addEventListener('click', async () => {
+  if (!currentFixture) {
+    statusNote('Seleciona primeiro uma partida.');
+    return;
+  }
+  if (!packet) await preview();
+  await ask('', true);
+});
+$('followup').addEventListener('submit', e => {
+  e.preventDefault();
+  const q = $('question').value.trim();
+  if (!q) return;
+  $('question').value = '';
+  ask(q);
+});
+
+(async () => {
+  try {
+    const status = await fetchJSON('/api/status');
+    leagues = status.leagues || {};
+    const select = $('league');
+    select.replaceChildren();
+    addOption(select, '', 'Seleciona uma competição');
+    for (const [code, league] of Object.entries(leagues)) {
+      addOption(select, code, `${league.country} · ${league.name}`);
+    }
+    const ai = await fetchJSON('/api/ai/status');
+    $('api-state').textContent = ai.configured ? `Gemini configurado · ${ai.model}` : 'Gemini sem chave · configurar GEMINI_API_KEY';
+    $('today').textContent = new Date().toLocaleDateString('pt-PT', {day:'2-digit', month:'long', year:'numeric'});
+    if (leagues.P1) {
+      $('league').value = 'P1';
+      await loadFixtures();
+    }
+  } catch (e) {
+    statusNote('Não foi possível inicializar: ' + e.message);
+  }
 })();
