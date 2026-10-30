@@ -40,7 +40,7 @@ test('a interface permite validar odd sem consumir Gemini',()=>{
  assert.match(ui,/api\/ai\/preview/);
  assert.match(server,/api\/ai\/preview/);
  assert.match(server,/buildManualOdd/);
- assert.match(html,/Web 5.9.1/);
+ assert.match(html,/Web 5.9.2/);
 });
 test('divergência enorme entre modelo e odd bloqueia classificação de entrada',async()=>{
  const {allMarketOptions}=await import('../lib/model.mjs');
