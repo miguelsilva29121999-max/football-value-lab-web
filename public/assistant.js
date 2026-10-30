@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let leagues = {}, fixtures = [], currentFixture = null, packet = null, conversation = [], running = false;
+let priceDrafts = new Map();
 
 const statusNote = msg => {
   const box = $('problem');
@@ -198,66 +199,133 @@ function renderPrimaryHero(primary){
     </div>`;
 }
 
-function showMarketsToQuote(packetData){
-  const board = $('quote-board');
-  board.replaceChildren();
-  board.hidden = false;
-  const arr = (packetData.candidateMarkets || []).slice(0, 4);
-  renderPrimaryHero(arr[0]);
-
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = `
-    <div class="board-head">
-      <div>
-        <div class="section-tag">MERCADOS SELECIONADOS</div>
-        <h3>${arr.length ? 'Entradas para comparar na tua casa' : 'Sem entrada justificada'}</h3>
-        <div class="board-sub">Aqui tens uma seleção principal e alternativas. O foco já não é despejar estatísticas; é mostrar-te mercados concretos com a odd mínima exigida pelo modelo.</div>
-      </div>
-      <div class="tag info">Histórico liga: ${packetData.historicalMatchesInLeague || 0} jogos</div>
-    </div>`;
-  board.appendChild(wrapper);
-
-  if (!arr.length) {
-    const empty = document.createElement('div');
-    empty.className = 'decision-panel';
-    empty.dataset.decision = 'OBSERVAR';
-    empty.innerHTML = `<div class="decision-title">SEM ENTRADA JUSTIFICADA</div><div class="decision-body">Não foi possível destacar um mercado utilizável com os dados atuais. Podes ainda conversar com o assistente, mas o site não deve inventar uma aposta.</div>`;
-    board.appendChild(empty);
-    return;
+const isNoKickoff=fixture=>['INICIO_HOJE_NAO_CONFIRMADO','JOGO_JA_PODE_TER_COMECADO'].includes(fixture?.status);
+function renderHistory(data){
+ const root=$('history-content');if(!root)return;
+ root.replaceChildren();
+ const h=data.historySummary;
+ if(!h){root.textContent='O fornecedor não devolveu um resumo verificável do histórico.';return;}
+ const intro=document.createElement('p');
+ intro.textContent='Histórico da liga: '+h.totalLeagueGames+' partidas. São apenas encontros anteriores à data do jogo, não jogos de todas as competições.';
+ root.append(intro);
+ const value=v=>v?.value==null?'sem dados':toOdd(v.value)+' ('+v.coverage+'/'+v.total+' jogos)';
+ for(const [venue,team] of [['Casa',h.home],['Fora',h.away]]){
+  const card=document.createElement('div');card.className='history-team';
+  const title=document.createElement('strong');title.textContent=team.team+' · '+venue+' · '+team.leagueGames+' jogos de liga';card.append(title);
+  const stat=document.createElement('p'),a=team.lastFive.averages;
+  stat.textContent='Últimos 5 — golos marcados: '+value(a.scored)+' · sofridos: '+value(a.conceded)+' · cantos: '+value(a.corners)+' · remates: '+value(a.shots);
+  card.append(stat);
+  const games=document.createElement('p');games.className='history-games';
+  games.textContent=team.lastFive.games.map(m=>m.date+' '+m.home+' '+m.hg+'–'+m.ag+' '+m.away).join('  •  ')||'Sem partidas anteriores registadas.';
+  card.append(games);
+  const venueStat=document.createElement('p'),recent=team.lastFiveAtVenue;
+  venueStat.textContent='Últimos '+recent.games.length+' '+(venue==='Casa'?'em casa':'fora')+': golos marcados '+value(recent.averages.scored)+', sofridos '+value(recent.averages.conceded);
+  card.append(venueStat);root.append(card);
+ }
+ const note=document.createElement('p');
+ note.textContent='Dados em falta não são considerados zero; amostras e probabilidades não estão calibradas.';
+ root.append(note);
+}
+function showMarketsToQuote(data){
+ const board=$('quote-board');board.replaceChildren();board.hidden=false;
+ const arr=(data.candidateMarkets||[]).slice(0,8),locked=isNoKickoff(data.fixture);
+ renderPrimaryHero(arr[0]);
+ if(locked){
+  const heading=$('match-stage').querySelector('.top-pick-title');
+  if(heading)heading.textContent='SELEÇÃO HISTÓRICA · SEM VALIDAÇÃO PRÉ-JOGO';
+ }
+ const head=document.createElement('div');head.className='board-head';
+ const title=document.createElement('div');
+ const kicker=document.createElement('div');kicker.className='section-tag';kicker.textContent='MERCADOS SELECIONADOS';
+ const h3=document.createElement('h3');h3.textContent=arr.length?'Entradas para comparar na tua casa':'Sem mercado fundamentado';
+ const description=document.createElement('p');description.className='board-sub';
+ description.textContent=locked?'Os mercados abaixo são apenas históricos: sem hora de início confirmada hoje, não podem ser validados como pré-jogo.':'Introduz a odd real em vários cartões. Só depois da comparação escolhemos a melhor hipótese — sem prometer uma aposta lucrativa.';
+ title.append(kicker,h3,description);head.append(title);board.append(head);
+ if(!arr.length){
+  const none=document.createElement('div');none.className='decision-panel';
+  const reasons=(data.modelLimitations||[]).filter(Boolean).slice(0,3).join(' · ');
+  none.textContent='Não foram encontrados mercados com suporte suficiente. '+(reasons||'Consulta o histórico disponível abaixo; não serão inventadas probabilidades.');
+  board.append(none);return;
+ }
+ const grid=document.createElement('div');grid.className='entry-grid';
+ arr.forEach((candidate,index)=>{
+  const card=document.createElement('article');card.className='entry-card'+(index===0?' main':'');card.dataset.optionId=candidate.id;
+  const kicker=document.createElement('div');kicker.className='entry-kicker';kicker.textContent=index===0?'SELEÇÃO PRINCIPAL PARA COTAR':'ALTERNATIVA '+index;
+  const title=document.createElement('div');title.className='entry-title';title.textContent=candidate.name;
+  const explain=document.createElement('div');explain.className='entry-desc';explain.textContent=buildEntryDescription(candidate,index);
+  card.append(kicker,title,explain);
+  const metrics=document.createElement('div');metrics.className='entry-metrics';
+  for(const [label,value] of [['Probabilidade',toPct(candidate.modelProbability)],['Cenário baixo',toPct(candidate.scenarioLow)],['Odd mínima',toOdd(candidate.thresholdOddExperimental)]]){
+   const box=document.createElement('div');box.className='mini';
+   const l=document.createElement('div');l.className='label';l.textContent=label;
+   const v=document.createElement('div');v.className='value';v.textContent=value;box.append(l,v);metrics.append(box);
   }
-
-  const grid = document.createElement('div');
-  grid.className = 'entry-grid';
-  arr.forEach((c, index) => {
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = `entry-card ${index===0 ? 'main' : ''}`;
-    card.innerHTML = `
-      <div class="entry-kicker">${index===0 ? 'SELEÇÃO PRINCIPAL' : 'ALTERNATIVA ' + index}</div>
-      <div class="entry-title">${c.name}</div>
-      <div class="entry-desc">${buildEntryDescription(c, index)}</div>
-      <div class="entry-metrics">
-        <div class="mini"><div class="label">Probabilidade</div><div class="value">${toPct(c.modelProbability)}</div></div>
-        <div class="mini"><div class="label">Cenário baixo</div><div class="value">${toPct(c.scenarioLow)}</div></div>
-        <div class="mini"><div class="label">Odd mínima</div><div class="value">${toOdd(c.thresholdOddExperimental)}</div></div>
-      </div>
-      <div class="entry-actions">
-        <span class="tag good">Para cotar</span>
-        <span class="tag info">Clique para validar</span>
-        ${(c.notes||[]).length ? '<span class="tag warn">Atenção ao risco</span>' : ''}
-      </div>`;
-    card.addEventListener('click', () => {
-      $('market').value = c.id;
-      $('price').focus();
-      document.querySelectorAll('.entry-card').forEach(el => el.classList.remove('selected'));
-      card.classList.add('selected');
-    });
-    grid.appendChild(card);
+  card.append(metrics);
+  if(candidate.historicalAudit?.status==='DESFAVORAVEL'){
+   const warning=document.createElement('div');warning.className='tag warn';warning.textContent='Aviso: histórico preditivo desfavorável';card.append(warning);
+  }
+  const action=document.createElement('div');action.className='entry-quote';
+  const label=document.createElement('label');label.textContent=locked?'Jogo de hoje: cotação bloqueada':'Odd real da casa';
+  const input=document.createElement('input');input.className='entry-odd';input.inputMode='decimal';input.autocomplete='off';input.placeholder='Ex.: 1,95';input.disabled=locked;
+  input.setAttribute('aria-label','Odd da casa para '+candidate.name);input.value=priceDrafts.get(candidate.id)||'';
+  input.addEventListener('input',()=>{
+   if(input.value.trim())priceDrafts.set(candidate.id,input.value.trim());else priceDrafts.delete(candidate.id);
+   const verdict=$('batch-verdict');verdict.hidden=true;verdict.replaceChildren();
+   for(const e of grid.querySelectorAll('.entry-decision'))e.remove();
+   for(const e of grid.querySelectorAll('.entry-card'))delete e.dataset.decision;
   });
-  board.appendChild(grid);
-
-  const selected = $('market');
-  if (arr[0]?.id) selected.value = arr[0].id;
+  label.append(input);
+  const select=document.createElement('button');select.type='button';select.className='card-select';
+  select.textContent='Selecionar mercado';select.addEventListener('click',()=>{
+   $('market').value=candidate.id;$('price').value=input.value;
+   grid.querySelectorAll('.entry-card').forEach(e=>e.classList.remove('selected'));card.classList.add('selected');
+   $('price').focus();
+  });
+  action.append(label,select);card.append(action);grid.append(card);
+ });
+ board.append(grid);
+ if(!locked){
+  const compare=document.createElement('button');compare.type='button';compare.className='compare-all';
+  compare.textContent='✓ Comparar odds e escolher a melhor hipótese';
+  compare.addEventListener('click',compareQuotedMarkets);board.append(compare);
+ }else{
+  const warning=document.createElement('p');warning.className='entry-desc';
+  warning.textContent='Dados históricos disponíveis; não existe feed live nem hora de início verificada para uma entrada pré-jogo.';
+  board.append(warning);
+ }
+}
+async function compareQuotedMarkets(){
+ if(!packet||!currentFixture)return statusNote('Seleciona uma partida primeiro.');
+ if(isNoKickoff(packet.fixture))return statusNote('Sem hora de início verificável não é possível validar entradas pré-jogo.');
+ const offers=[...priceDrafts.entries()].filter(([,value])=>String(value).trim()).map(([optionId,odd])=>({optionId,odd}));
+ if(!offers.length)return statusNote('Introduz pelo menos uma odd real num dos cartões.');
+ try{
+  statusNote('');
+  const fixtureId=currentFixture.id;
+  const results=await post('/api/ai/preview',{league:$('league').value,fixtureId,offers});
+  if(currentFixture?.id!==fixtureId)return;
+  const block=$('batch-verdict');block.hidden=false;block.replaceChildren();
+  const primary=results.bestCandidate||results.bestTheoreticalInReview||null;
+  block.dataset.decision=results.bestCandidate?'POTENCIAL':results.bestTheoreticalInReview?'REVER_MODELO':'OBSERVAR';
+  const heading=document.createElement('strong');
+  heading.textContent=results.bestCandidate?'MELHOR PREÇO EXPERIMENTAL · NÃO VALIDADO':results.bestTheoreticalInReview?'ODD SUPERA MÍNIMO · MODELO EM REVISÃO':'SEM ENTRADA AOS PREÇOS INTRODUZIDOS';
+  block.append(heading);
+  if(primary){
+   const line=document.createElement('p');
+   line.textContent=primary.market+' · Odd da casa '+toOdd(primary.odd)+' · Mínimo do modelo '+toOdd(primary.estimatedMinimumOdd)+' · EV central '+toPct(primary.estimatedEv)+' · Cenário adverso '+toPct(primary.estimatedEvLow)+'.';
+   block.append(line);
+   $('market').value=primary.optionId;$('price').value=String(primary.odd).replace('.',',');
+  }
+  const note=document.createElement('p');note.textContent=results.notice;block.append(note);
+  for(const item of results.offers||[]){
+   const card=[...$('quote-board').querySelectorAll('.entry-card')].find(c=>c.dataset.optionId===item.optionId);
+   if(!card)continue;
+   card.dataset.decision=item.decision;
+   const badge=document.createElement('div');badge.className='entry-decision';badge.dataset.decision=item.decision;
+   badge.textContent=(item.decision==='POTENCIAL'?'PREÇO EXPERIMENTAL FAVORÁVEL':item.decision==='REVER_MODELO'?'MODELO EM REVISÃO — NÃO ENTRAR':'NÃO ENTRAR')+' · '+item.reason;
+   card.append(badge);
+  }
+ }catch(error){statusNote('Não foi possível comparar as odds: '+error.message);}
 }
 
 function addMessage(role, text, links = []){
@@ -303,6 +371,9 @@ function selectedFixture(){
   currentFixture = fixtures.find(f => f.id === $('fixture').value) || null;
   packet = null;
   conversation = [];
+  priceDrafts = new Map();
+  const h=$('history-content');if(h)h.textContent='Seleciona um jogo para consultar o histórico.';
+  $('batch-verdict').hidden=true;$('batch-verdict').replaceChildren();
   $('market').replaceChildren();
   addOption($('market'), '', 'Sem mercado escolhido');
   $('price-verdict').hidden = true;
@@ -351,6 +422,7 @@ async function preview(){
     const data = await post('/api/ai/preview', {league:$('league').value, fixtureId:id});
     if (id !== currentFixture?.id) return;
     packet = data.packet;
+    renderHistory(packet);
     showMarketsToQuote(packet);
     const marketSelect = $('market');
     marketSelect.replaceChildren();
