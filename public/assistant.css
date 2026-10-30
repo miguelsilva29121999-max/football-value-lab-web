@@ -94,3 +94,30 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .hidden{display:none !important}
 @media (max-width:1180px){.hero,.top-pick{grid-template-columns:1fr}.layout-grid{grid-template-columns:1fr}.sidebar{position:static;height:auto}.app-shell{grid-template-columns:1fr}.main{padding:0 18px 32px}.sidebar{border-right:0;border-bottom:1px solid #24354d}.team-name{font-size:20px}}
 @media (max-width:760px){.teams-row{grid-template-columns:1fr;justify-items:center;text-align:center}.team-block,.team-block.right{justify-content:center;text-align:center}.entry-metrics,.pick-stats,.compose{grid-template-columns:1fr}.hero{padding:24px}.topbar{height:auto;padding:16px 0;gap:8px;flex-direction:column;align-items:flex-start}.status-badge{white-space:normal}.entry-title{font-size:19px}.pick-name{font-size:24px}}
+
+/* v5.9.1 — odds reais por cartão e estatísticas recuperadas */
+.entry-card{display:block;text-align:left}
+.entry-card .entry-desc{min-height:0}
+.entry-card.selected{border-color:#b9eb88;box-shadow:0 0 0 1px rgba(201,245,128,.25)}
+.entry-quote{display:flex;flex-wrap:wrap;gap:9px;align-items:end;margin-top:8px}
+.entry-quote label{font-size:11px;font-weight:800;color:#bdcfc9;display:grid;gap:5px;flex:1;min-width:95px}
+.entry-odd{width:100%;min-height:42px;border:1px solid #46677b;border-radius:9px;background:#0c1d2f;color:#f2f9fa;padding:9px 11px;font-size:14px}
+.entry-odd:focus{outline:2px solid #c8f580;outline-offset:1px}
+.card-select{border:1px solid #52725e;border-radius:9px;background:#203c2f;color:#e0f6c0;padding:11px 13px;font-size:11px;font-weight:800}
+.entry-decision{border-top:1px solid #3b5769;padding-top:10px;margin-top:12px;font-size:11px;line-height:1.6}
+.entry-decision[data-decision="POTENCIAL"]{color:#c4eea1}
+.entry-decision[data-decision="REVER_MODELO"]{color:#f2d28d}
+.entry-decision[data-decision="OBSERVAR"]{color:#f4b8b7}
+.compare-all{display:block;width:100%;margin-top:16px;background:#c8f580;color:#10201c;border:none;border-radius:12px;padding:14px;font-size:13px;font-weight:900}
+.history-detail{padding:18px 21px}
+.history-detail summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:13px;font-weight:800;color:#e5f4d1;list-style:none}
+.history-detail summary::-webkit-details-marker{display:none}
+.history-body{padding-top:14px;color:#a9c0ce;line-height:1.7;font-size:12px}
+.history-team{background:#14293b;border:1px solid #355065;border-radius:11px;padding:13px;margin-top:10px}
+.history-team strong{display:block;font-size:13px;color:#e9f6f1}
+.history-team p{margin:7px 0 0}
+.history-games{color:#b7c7d8}
+#batch-verdict{margin-top:-4px;padding:18px 20px}
+#batch-verdict strong{display:block;font-size:14px;color:#d7f3bb}
+#batch-verdict p{font-size:12px;line-height:1.7}
+#batch-verdict[hidden]{display:none}
