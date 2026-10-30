@@ -53,7 +53,7 @@ test('invalid private code is rejected and never stored',async()=>{
 });
 test('startup error is visible beside league selection and current game dates are filtered',()=>{
  const html=fs.readFileSync(new URL('../public/assistant.html',import.meta.url),'utf8');
- assert.match(html,/Web 5\.9\.1/);
+ assert.match(html,/Web 5\.9\.2/);
  assert.match(html,/id="problem".*role="alert"/);
  assert.ok(html.indexOf('id="problem"')<html.indexOf('id="league"'));
  assert.match(source,/timeZone:'Europe\/Lisbon'/);
