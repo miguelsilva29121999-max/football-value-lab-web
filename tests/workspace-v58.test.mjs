@@ -23,18 +23,18 @@ test('Pagina principal abre centro atual sem mostrar antigos radares na navegaca
  const html=fs.readFileSync(new URL('../public/assistant.html',import.meta.url),'utf8');
  const config=JSON.parse(fs.readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
  assert.ok(config.rewrites.some(x=>x.source==='/'&&x.destination==='/assistant.html'));
- assert.match(html,/CENTRO DE OPORTUNIDADES/);
+ assert.match(html,/MATCHDAY PRO \+ PREMIUM PICKS/);
  assert.doesNotMatch(html,/Ferramentas anteriores|Radar antigo|Mercado \+ Múltiplas/);
- for(const id of ['league','filter','fixture','quote-board','decision-summary','history-panel','chat','price-verdict','batch-verdict','question','market'])assert.match(html,new RegExp('id="'+id+'"'),id);
+ for(const id of ['league','filter','fixture','quote-board','match-stage','history-panel','chat','price-verdict','batch-verdict','question','market'])assert.match(html,new RegExp('id="'+id+'"'),id);
 });
 test('Frontend atualizado e sintaticamente valido, compara odds e bloqueia jogos de ontem',()=>{
  execFileSync(process.execPath,['--check',new URL('../public/assistant.js',import.meta.url).pathname]);
  const js=fs.readFileSync(new URL('../public/assistant.js',import.meta.url),'utf8');
  const provider=fs.readFileSync(new URL('../lib/providers.mjs',import.meta.url),'utf8');
- assert.match(js,/f.date<today/);
+ assert.match(js,/f.date>=today/);
  assert.match(js,/showMarketsToQuote/);
  assert.match(js,/compareQuotedMarkets/);
- assert.match(js,/setDecision/);
+ assert.match(js,/renderPrimaryHero/);
  assert.match(js,/isNoKickoff/);
  assert.match(provider,/filterUpcomingFixtures\(\[\.\.\.fixtures\.values\(\)\],now\)/);
 });
