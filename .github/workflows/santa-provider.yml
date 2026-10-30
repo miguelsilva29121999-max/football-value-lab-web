@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'scripts/diagnose-santa-clara.mjs'
+      - 'scripts/diagnose-casa-pia-sporting.mjs'
       - '.github/workflows/santa-provider.yml'
       - 'lib/providers.mjs'
   workflow_dispatch:
@@ -15,3 +16,4 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/diagnose-santa-clara.mjs
+      - run: node scripts/diagnose-casa-pia-sporting.mjs
