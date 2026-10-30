@@ -40,6 +40,6 @@ test('Interface e servidor expõem comparacao de varias odds no mesmo pedido',()
  const server=fs.readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
  assert.match(html,/Web 5\.8/);
  assert.match(js,/compareQuotedMarkets/);
- assert.match(js,/fixtureId:currentFixture.id,offers/);
+ assert.match(js,/fixtureId,offers/);
  assert.match(server,/compareManualOffers/);
 });
