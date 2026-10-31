@@ -75,3 +75,14 @@ Este projeto transforma o Football Value Lab 5.1 (Gemini) numa aplicação web, 
 - Caso a odd real fique abaixo do mínimo, a validação mantém **OBSERVAR / NÃO ENTRAR**, explica a diferença e apresenta até três linhas alternativas **para cotar**, sem inventar qualquer cotação.
 - Nenhum valor estatístico é ajustado artificialmente para converter uma rejeição em entrada. As probabilidades continuam sem calibração robusta; uma entrada de valor exigiria preço real e validação preditiva independente.
 - A implementação não adiciona chamadas ao Gemini nem pressupõe um feed live de bookmakers.
+
+
+## Atualização v5.9.7 — quote-first (sem seleção principal fictícia)
+
+**Problema observado:** em Estudiantes — Instituto, o modelo apresentava «Instituto menos de 1,5 golos» como hipótese principal com odd mínima experimental de 1,50, mesmo sem dispor da odd realmente oferecida. Para esta categoria não existia referência de mercado; um preço real de 1,18 tornaria a hipótese inviável segundo o próprio modelo.
+
+**Correção:** no ecrã do jogo, sem odd manual inserida o painel principal apresenta «SEM ODD REAL · SEM ENTRADA VALIDADA», um resumo estatístico e até 12 mercados **para cotar** sem privilegiar nenhum como aposta principal. A API devolve `primaryMarketToQuote: null` antes de receber cotação. O Gemini também recebe instruções para não escolher unilateralmente uma entrada sem preço.
+
+Após clicar em **Comparar odds**, o painel destaca um mercado apenas se a sua odd real introduzida passar a triagem experimental. Se as cotações falharem, apresenta «SEM ENTRADA AOS PREÇOS TESTADOS». Ao escrever uma odd inferior à mínima, o cartão exibe «NÃO ENTRAR» e desce na ordenação da grelha, para dar prioridade a outras linhas a cotar.
+
+Isto **não** resolve automaticamente a disponibilidade de preços nas casas. As odds mínimas continuam dependentes de um modelo de probabilidades ainda não calibrado. Para automatizar a seleção verdadeiramente orientada a preços, será necessário integrar um fornecedor de cotações atuais que cubra cada competição e mercado (incluindo golos por equipa); as fontes de calendário ESPN e TheSportsDB não equivalem a tal fornecedor. Não inventar preços nem baixar artificialmente o limite para gerar sinais.
