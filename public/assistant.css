@@ -139,3 +139,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .market-price-reference{border:1px solid #334f60;border-radius:12px;padding:10px 12px;background:#11273a;color:#b7cee0;font-size:12px;line-height:1.6;margin-top:8px}
 .market-price-reference.mismatch{border-color:#8c6147;background:#352620;color:#ffdbad;font-weight:700}
 .entry-quote+.market-price-reference{margin-top:10px}
+
+/* v5.9.7 — destaque só depois de uma cotação validada */
+.top-pick.quote-status.unpriced{background:linear-gradient(120deg,#12283a,#112133 70%);border-color:#38536a}
+.top-pick.quote-status.unpriced .top-pick-title{color:#c1d5e5}
+.top-pick.quote-status.unpriced .pick-name{font-size:clamp(22px,2.7vw,29px);color:#ecf4fa}
+.top-pick.quote-status.quoted-good{background:linear-gradient(120deg,#173427,#132335 70%);border-color:#476f52}
+.entry-card[style*="order: 2"]{opacity:.8;border-color:#735848}
