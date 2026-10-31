@@ -337,8 +337,9 @@ async function refreshShortRadar(){
   const result=await fetchJSON('/api/fixtures?windowHours=5');
   const matches=result.matches||[];
   summary.textContent=matches.length
-    ? matches.length+' jogos nas próximas 5 horas · '+result.source+' · horários indicativos, não confirmados em direto.'
-    : 'Nenhum jogo com hora indicada nas próximas 5 horas nas ligas atualmente cobertas. Isto não significa que não haja jogos noutros países.';
+    ? matches.length+' jogos nas próximas 5 horas · '+result.source+' · '+result.checkedLeagues+'/'+result.requestedLeagues+' ligas consultadas. Horários não verificados em direto.'
+    : result.checkedLeagues+' ligas consultadas; nenhum jogo previsto nas próximas cinco horas nos calendários disponíveis.';
+  if(result.failedLeagues){summary.textContent+=' '+result.failedLeagues+' ligas falharam nesta consulta.';}
   for(const match of matches){
    const card=document.createElement('article');card.className='short-game';
    const info=document.createElement('div');
