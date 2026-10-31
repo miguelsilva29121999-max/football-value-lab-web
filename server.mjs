@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {LEAGUES,POLICY,allMarketOptions} from './lib/model.mjs';
-import {loadLeague,loadFixturesSnapshot,toDate,scanLeagues,analyzeFixture,oddsSports} from './lib/providers.mjs';
+import {loadLeague,scanLeagues,analyzeFixture,oddsSports} from './lib/providers.mjs';
 import {scanStatFirst,checkStatManual,QUOTE_PROFILES} from './lib/statfirst.mjs';
 import {scanMarketLab,evaluateMultipleRequest,SEARCH_MODES} from './lib/marketlab.mjs';
 import {createMatchContext, buildManualOdd, compareManualOffers, askGeminiAI} from './lib/ai-assistant.mjs';
