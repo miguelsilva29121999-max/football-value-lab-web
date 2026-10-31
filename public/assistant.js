@@ -283,7 +283,7 @@ function showMarketsToQuote(data){
   const updateHint=()=>{
    const odd=Number(input.value.replace(',','.'));
    const min=Number(candidate.thresholdOddExperimental);
-   if(!Number.isFinite(odd)||odd<=1.01){priceHint.textContent='Introduz a odd real para verificar a diferença.';priceHint.classList.remove('mismatch');return;}
+   if(!Number.isFinite(odd)||odd<=1.01){priceHint.textContent='Introduz a odd real para verificar a diferença.';priceHint.classList.remove('mismatch');card.style.order='0';return;}
    const gap=min-odd;
    const far=gap>=.15&&gap/odd>=.12;
    priceHint.textContent=gap>0.009?'Odd real '+toOdd(odd)+' inferior ao mínimo '+toOdd(min)+(far?' — DESALINHAMENTO GRANDE. NÃO ENTRAR.':' — não tem valor a este preço.'): 'A odd atinge o mínimo teórico; valida também o risco e a qualidade do modelo.';
