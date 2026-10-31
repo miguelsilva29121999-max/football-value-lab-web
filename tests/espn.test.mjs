@@ -30,7 +30,10 @@ test('consulta ESPN com datas e sem chave de API',async()=>{
  };
  const response=await fetchEspnEvents('BR2',new Date('2029-01-01T00:00:00Z'),new Date('2029-01-03T00:00:00Z'),{fetcher});
  assert.equal(response.events.length,1);
- assert.match(calls[0].url,/bra\.2\/scoreboard\?dates=20290101-20290103/);
+ assert.equal(calls.length,3);
+ assert.ok(calls.every(x=>!x.url.includes('20290101-20290103')));
+ assert.match(calls[0].url,/bra\.2\/scoreboard\?dates=20290101(?:&|$)/);
+ assert.match(calls[2].url,/bra\.2\/scoreboard\?dates=20290103(?:&|$)/);
  assert.ok(!calls[0].url.includes('apiKey'));
 });
 test('divisões e países latino-americanos têm slugs explícitos',()=>{
