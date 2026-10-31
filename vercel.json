@@ -12,6 +12,9 @@
     }
   ],
   "functions": {
+    "api/fixtures.js": {
+      "maxDuration": 60
+    },
     "api/ai/chat.js": {
       "maxDuration": 120
     },
