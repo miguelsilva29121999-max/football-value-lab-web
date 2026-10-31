@@ -330,16 +330,79 @@ async function compareQuotedMarkets(){
 }
 
 
+// Segunda tentativa opcional: scoreboard ESPN diretamente no browser.
+// Necessária quando o CDN rejeita saídas de servidor Vercel; não precisa da chave Gemini.
+async function browserEspnRadar(){
+ const now=new Date(),limit=new Date(now.getTime()+5*3600000);
+ const dayKeys=[];
+ let day=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()));
+ while(day.getTime()<=limit.getTime()&&dayKeys.length<2){
+  dayKeys.push(day.toISOString().slice(0,10).replaceAll('-',''));day=new Date(day.getTime()+86400000);
+ }
+ const available=Object.entries(leagues).filter(([,meta])=>meta.espnCode);
+ let cursor=0,successful=0,failed=0;
+ const found=new Map();
+ const worker=async()=>{
+  for(;;){
+   const n=cursor++;if(n>=available.length)return;
+   const [code,meta]=available[n];
+   const calls=await Promise.allSettled(dayKeys.map(async date=>{
+    const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+encodeURIComponent(meta.espnCode)+'/scoreboard?dates='+date+'&limit=750';
+    const response=await fetch(url,{headers:{accept:'application/json'},signal:AbortSignal.timeout(6000)});
+    if(!response.ok)throw Error('ESPN '+response.status);
+    const data=await response.json();
+    if(!Array.isArray(data.events))throw Error('Formato ESPN inválido');
+    return data.events;
+   }));
+   const okay=calls.filter(v=>v.status==='fulfilled');
+   if(!okay.length){failed++;continue;}
+   successful++;
+   for(const result of okay)for(const e of result.value){
+    const c=e?.competitions?.[0],parts=c?.competitors||[];
+    const home=parts.find(p=>p.homeAway==='home')?.team,away=parts.find(p=>p.homeAway==='away')?.team;
+    const nameH=home?.displayName||home?.name,nameA=away?.displayName||away?.name;
+    const start=e?.date||c?.date,t=Date.parse(start||'');
+    const state=e?.status?.type?.state||c?.status?.type?.state||'';
+    if(!nameH||!nameA||!Number.isFinite(t)||t<now.getTime()||t>limit.getTime()||state==='in'||state==='post'||e?.status?.type?.completed)continue;
+    const kickoffUtc=new Date(t).toISOString(),date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
+    const id=[code,date,encodeURIComponent(nameH),encodeURIComponent(nameA)].join('|');
+    found.set(id,{id,league:code,competition:meta.name,country:meta.country,date,home:nameH,away:nameA,kickoffUtc,
+      source:'ESPN (consulta no browser)',timeStatus:'HORARIO_INDICATIVO'});
+   }
+  }
+ };
+ await Promise.all(Array.from({length:Math.min(7,available.length)},worker));
+ return {matches:[...found.values()].sort((a,b)=>a.kickoffUtc.localeCompare(b.kickoffUtc)),
+  checkedLeagues:successful,requestedLeagues:available.length,failedLeagues:failed,
+  source:'ESPN — consulta direta',warning:'Horários indicativos. Consulta direta no navegador, sem verificação live.',
+  coverage:'A cobertura depende dos calendários publicados pela ESPN.'};
+}
 async function refreshShortRadar(){
  const root=$('short-games'),summary=$('short-summary'),btn=$('short-refresh');
  btn.disabled=true;summary.textContent='A consultar calendários disponíveis…';root.replaceChildren();
  try{
-  const result=await fetchJSON('/api/fixtures?windowHours=5');
+  let result;
+  try{result=await fetchJSON('/api/fixtures?windowHours=5');}
+  catch(serverError){
+   summary.textContent='O servidor não conseguiu obter o calendário. A tentar uma consulta alternativa no navegador…';
+   result=await browserEspnRadar();
+   if(!result.checkedLeagues)throw Error(serverError.message+' A consulta direta também falhou.');
+  }
+  if(!result.checkedLeagues&&result.fallbackDays){
+   summary.textContent='Fonte de reserva com cobertura reduzida. A procurar uma lista mais completa diretamente…';
+   try{
+    const direct=await browserEspnRadar();
+    if(direct.checkedLeagues)result=direct;
+   }catch{}
+  }
   const matches=result.matches||[];
+  const coverage=result.checkedLeagues
+    ? result.checkedLeagues+'/'+result.requestedLeagues+' ligas consultadas'
+    : 'Fonte de reserva com cobertura parcial';
   summary.textContent=matches.length
-    ? matches.length+' jogos nas próximas 5 horas · '+result.source+' · '+result.checkedLeagues+'/'+result.requestedLeagues+' ligas consultadas. Horários não verificados em direto.'
-    : result.checkedLeagues+' ligas consultadas; nenhum jogo previsto nas próximas cinco horas nos calendários disponíveis.';
-  if(result.failedLeagues){summary.textContent+=' '+result.failedLeagues+' ligas falharam nesta consulta.';}
+    ? matches.length+' jogos nas próximas 5 horas · '+result.source+' · '+coverage+'. Horários não verificados em direto.'
+    : coverage+': nenhum jogo identificado nas próximas cinco horas nos dados disponíveis.';
+  if(result.failedLeagues)summary.textContent+=' '+result.failedLeagues+' consultas de liga falharam.';
   for(const match of matches){
    const card=document.createElement('article');card.className='short-game';
    const info=document.createElement('div');
