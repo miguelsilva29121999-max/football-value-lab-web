@@ -231,7 +231,8 @@ function renderHistory(data){
 function showMarketsToQuote(data){
  const board=$('quote-board');board.replaceChildren();board.hidden=false;
  const arr=(data.candidateMarkets||[]).slice(0,8),locked=isNoKickoff(data.fixture);
- renderPrimaryHero(arr[0]);
+ const allKnownQuotesMispriced=arr.length>0&&arr.every(c=>c.priceReality?.status==='PRECO_MUITO_INFERIOR');
+ renderPrimaryHero(allKnownQuotesMispriced?null:arr[0]);
  if(locked){
   const heading=$('match-stage').querySelector('.top-pick-title');
   if(heading)heading.textContent='SELEÇÃO HISTÓRICA · SEM VALIDAÇÃO PRÉ-JOGO';
@@ -239,7 +240,7 @@ function showMarketsToQuote(data){
  const head=document.createElement('div');head.className='board-head';
  const title=document.createElement('div');
  const kicker=document.createElement('div');kicker.className='section-tag';kicker.textContent='MERCADOS SELECIONADOS';
- const h3=document.createElement('h3');h3.textContent=arr.length?'Mercados para cotar na tua casa':'Sem mercado fundamentado';
+ const h3=document.createElement('h3');h3.textContent=allKnownQuotesMispriced?'Nenhuma referência de preço compatível':arr.length?'Mercados para cotar na tua casa':'Sem mercado fundamentado';
  const description=document.createElement('p');description.className='board-sub';
  description.textContent=locked?'Os mercados abaixo são apenas históricos: sem hora de início confirmada hoje, não podem ser validados como pré-jogo.':'A odd mínima é o preço exigido pelo modelo, NÃO a odd disponível na casa. Sem cotação real não há aposta identificada.';
  title.append(kicker,h3,description);head.append(title);board.append(head);
@@ -252,8 +253,8 @@ function showMarketsToQuote(data){
  }
  const grid=document.createElement('div');grid.className='entry-grid';
  arr.forEach((candidate,index)=>{
-  const card=document.createElement('article');card.className='entry-card'+(index===0?' main':'');card.dataset.optionId=candidate.id;
-  const kicker=document.createElement('div');kicker.className='entry-kicker';kicker.textContent=index===0?'PRIMEIRA HIPÓTESE · COTAR':'ALTERNATIVA PARA COTAR '+index;
+  const card=document.createElement('article');card.className='entry-card'+(index===0&&!allKnownQuotesMispriced?' main':'');card.dataset.optionId=candidate.id;
+  const kicker=document.createElement('div');kicker.className='entry-kicker';kicker.textContent=index===0&&!allKnownQuotesMispriced?'PRIMEIRA HIPÓTESE · COTAR':allKnownQuotesMispriced?'REFERÊNCIA DESALINHADA · APENAS REVER':'ALTERNATIVA PARA COTAR '+index;
   const title=document.createElement('div');title.className='entry-title';title.textContent=candidate.name;
   const explain=document.createElement('div');explain.className='entry-desc';explain.textContent=buildEntryDescription(candidate,index);
   card.append(kicker,title,explain);
