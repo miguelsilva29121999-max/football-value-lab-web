@@ -65,3 +65,13 @@ Este projeto transforma o Football Value Lab 5.1 (Gemini) numa aplicação web, 
 - O histórico da análise é da liga, não de todas as competições, e os valores projetados de golos não são xG de remates.
 - Foi evitada a 13.ª função na Vercel Hobby: a validação reutiliza POST /api/ai/preview.
 - Para verificar o código e testes: `npm test` (123 testes no ambiente de desenvolvimento).
+
+## Atualização v5.9.6 — compatibilidade da odd mínima com o mercado
+
+- A **odd mínima experimental** é calculada pelo modelo; **não** é uma cotação esperada, observada nem garantidamente disponível.
+- Onde existe preço indicativo no snapshot Football-Data (1X2 e total 2,5), o ranking dá prioridade a candidatos cujo preço de referência não seja muito inferior à odd exigida. O snapshot pode estar desatualizado. Quando todos estão claramente desalinhados, não surge uma escolha principal validada.
+- Nos restantes mercados, não há cotação automática. O sistema mostra que o preço é desconhecido, em vez de afirmar que se trata de uma entrada realista.
+- Ao introduzir odd real, o site assinala imediatamente preços inferiores à mínima; um desvio de pelo menos 0,15 e 12% relativamente à odd real recebe um aviso de incompatibilidade forte.
+- Caso a odd real fique abaixo do mínimo, a validação mantém **OBSERVAR / NÃO ENTRAR**, explica a diferença e apresenta até três linhas alternativas **para cotar**, sem inventar qualquer cotação.
+- Nenhum valor estatístico é ajustado artificialmente para converter uma rejeição em entrada. As probabilidades continuam sem calibração robusta; uma entrada de valor exigiria preço real e validação preditiva independente.
+- A implementação não adiciona chamadas ao Gemini nem pressupõe um feed live de bookmakers.
