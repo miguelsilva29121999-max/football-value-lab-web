@@ -151,8 +151,9 @@ function renderMatchStageFromFixture(){
 function buildEntryDescription(candidate, position){
   const notes = (candidate.notes || []).filter(Boolean);
   let base = position === 0
-    ? 'É a linha mais utilizável do motor neste jogo, com melhor equilíbrio entre probabilidade, cenário adverso e atratividade potencial.'
-    : 'Alternativa modelada para o mesmo jogo, útil se a seleção principal estiver mal cotada na tua casa.';
+    ? 'Primeira hipótese estatística para consultar na tua casa. A odd mínima não é uma cotação real.'
+    : 'Alternativa estatística a cotar se o preço da hipótese principal não compensar.';
+  if(candidate.priceReality?.status==='PRECO_MUITO_INFERIOR')base='⚠ Referência de preço '+toOdd(candidate.priceReality.price)+' muito abaixo da odd mínima '+toOdd(candidate.thresholdOddExperimental)+'. Esta linha não é uma oportunidade realista sem rever preço e modelo. ';
   if (notes.length) base += ` Atenção: ${notes[0]}`;
   return base;
 }
@@ -184,9 +185,10 @@ function renderPrimaryHero(primary){
       </div>
       <div class="top-pick">
         <div>
-          <div class="top-pick-title">ENTRADA PRINCIPAL PARA COTAR</div>
+          <div class="top-pick-title">HIPÓTESE PRINCIPAL PARA COTAR · PREÇO A CONFIRMAR</div>
           <div class="pick-name">${primary ? primary.name : 'Sem entrada justificada'}</div>
           <div class="pick-why">${primary ? buildEntryDescription(primary, 0) : 'O motor não encontrou um mercado suficientemente utilizável com os dados atuais.'}</div>
+          ${primary?.marketReference ? '<div class="pick-why">Cotação de referência indicativa: '+toOdd(primary.marketReference.indicativeOdd)+' (não é odd atual). '+(primary.priceReality?.status==='PRECO_MUITO_INFERIOR'?'Está abaixo do mínimo exigido.':'Confirma na tua casa.')+'</div>' : '<div class="pick-why">Sem cotação externa para este mercado. A odd atual precisa de ser introduzida manualmente.</div>'}
           <div class="pick-risk"><b>Risco principal:</b> ${primary?.notes?.[0] || 'probabilidades experimentais não calibradas; confirma sempre contexto e odd real.'}</div>
         </div>
         <div class="pick-stats">
@@ -237,9 +239,9 @@ function showMarketsToQuote(data){
  const head=document.createElement('div');head.className='board-head';
  const title=document.createElement('div');
  const kicker=document.createElement('div');kicker.className='section-tag';kicker.textContent='MERCADOS SELECIONADOS';
- const h3=document.createElement('h3');h3.textContent=arr.length?'Entradas para comparar na tua casa':'Sem mercado fundamentado';
+ const h3=document.createElement('h3');h3.textContent=arr.length?'Mercados para cotar na tua casa':'Sem mercado fundamentado';
  const description=document.createElement('p');description.className='board-sub';
- description.textContent=locked?'Os mercados abaixo são apenas históricos: sem hora de início confirmada hoje, não podem ser validados como pré-jogo.':'Introduz a odd real em vários cartões. Só depois da comparação escolhemos a melhor hipótese — sem prometer uma aposta lucrativa.';
+ description.textContent=locked?'Os mercados abaixo são apenas históricos: sem hora de início confirmada hoje, não podem ser validados como pré-jogo.':'A odd mínima é o preço exigido pelo modelo, NÃO a odd disponível na casa. Sem cotação real não há aposta identificada.';
  title.append(kicker,h3,description);head.append(title);board.append(head);
  if(!arr.length){
   const none=document.createElement('div');none.className='decision-panel';
@@ -251,7 +253,7 @@ function showMarketsToQuote(data){
  const grid=document.createElement('div');grid.className='entry-grid';
  arr.forEach((candidate,index)=>{
   const card=document.createElement('article');card.className='entry-card'+(index===0?' main':'');card.dataset.optionId=candidate.id;
-  const kicker=document.createElement('div');kicker.className='entry-kicker';kicker.textContent=index===0?'SELEÇÃO PRINCIPAL PARA COTAR':'ALTERNATIVA '+index;
+  const kicker=document.createElement('div');kicker.className='entry-kicker';kicker.textContent=index===0?'PRIMEIRA HIPÓTESE · COTAR':'ALTERNATIVA PARA COTAR '+index;
   const title=document.createElement('div');title.className='entry-title';title.textContent=candidate.name;
   const explain=document.createElement('div');explain.className='entry-desc';explain.textContent=buildEntryDescription(candidate,index);
   card.append(kicker,title,explain);
@@ -262,6 +264,14 @@ function showMarketsToQuote(data){
    const v=document.createElement('div');v.className='value';v.textContent=value;box.append(l,v);metrics.append(box);
   }
   card.append(metrics);
+  if(candidate.marketReference){
+   const reference=document.createElement('div');reference.className='market-price-reference';
+   reference.textContent='Odd indicativa (não atual): '+toOdd(candidate.marketReference.indicativeOdd)+' · '+(candidate.priceReality?.status==='PRECO_MUITO_INFERIOR'?'Muito abaixo do mínimo do modelo; não priorizar esta linha.':'Compara com a cotação real da tua casa.');
+   if(candidate.priceReality?.status==='PRECO_MUITO_INFERIOR')reference.classList.add('mismatch');
+   card.append(reference);
+  }else{
+   const reference=document.createElement('div');reference.className='market-price-reference';reference.textContent='Preço de mercado: não disponível automaticamente para esta linha.';card.append(reference);
+  }
   if(candidate.historicalAudit?.status==='DESFAVORAVEL'){
    const warning=document.createElement('div');warning.className='tag warn';warning.textContent='Aviso: histórico preditivo desfavorável';card.append(warning);
   }
@@ -269,7 +279,19 @@ function showMarketsToQuote(data){
   const label=document.createElement('label');label.textContent=locked?'Jogo de hoje: cotação bloqueada':'Odd real da casa';
   const input=document.createElement('input');input.className='entry-odd';input.inputMode='decimal';input.autocomplete='off';input.placeholder='Ex.: 1,95';input.disabled=locked;
   input.setAttribute('aria-label','Odd da casa para '+candidate.name);input.value=priceDrafts.get(candidate.id)||'';
+  const priceHint=document.createElement('div');priceHint.className='market-price-reference';
+  const updateHint=()=>{
+   const odd=Number(input.value.replace(',','.'));
+   const min=Number(candidate.thresholdOddExperimental);
+   if(!Number.isFinite(odd)||odd<=1.01){priceHint.textContent='Introduz a odd real para verificar a diferença.';priceHint.classList.remove('mismatch');return;}
+   const gap=min-odd;
+   const far=gap>=.15&&gap/odd>=.12;
+   priceHint.textContent=gap>0.009?'Odd real '+toOdd(odd)+' inferior ao mínimo '+toOdd(min)+(far?' — DESALINHAMENTO GRANDE. NÃO ENTRAR.':' — não tem valor a este preço.'): 'A odd atinge o mínimo teórico; valida também o risco e a qualidade do modelo.';
+   priceHint.classList.toggle('mismatch',gap>0.009);
+  };
+  updateHint();
   input.addEventListener('input',()=>{
+   updateHint();
    if(input.value.trim())priceDrafts.set(candidate.id,input.value.trim());else priceDrafts.delete(candidate.id);
    const verdict=$('batch-verdict');verdict.hidden=true;verdict.replaceChildren();
    for(const e of grid.querySelectorAll('.entry-decision'))e.remove();
@@ -282,7 +304,7 @@ function showMarketsToQuote(data){
    grid.querySelectorAll('.entry-card').forEach(e=>e.classList.remove('selected'));card.classList.add('selected');
    $('price').focus();
   });
-  action.append(label,select);card.append(action);grid.append(card);
+  action.append(label,select);card.append(action,priceHint);grid.append(card);
  });
  board.append(grid);
  if(!locked){
@@ -318,6 +340,10 @@ async function compareQuotedMarkets(){
    $('market').value=primary.optionId;$('price').value=String(primary.odd).replace('.',',');
   }
   const note=document.createElement('p');note.textContent=results.notice;block.append(note);
+  if(!results.bestCandidate){
+   const alternatives=[...new Map((results.offers||[]).flatMap(x=>x.alternativeMarkets||[]).filter(x=>!results.offers.some(o=>o.optionId===x.optionId)).map(x=>[x.optionId,x])).values()].slice(0,3);
+   if(alternatives.length){const follow=document.createElement('p');follow.textContent='Outras linhas para pedir cotação: '+alternatives.map(x=>x.name+' (mínimo modelo '+toOdd(x.minimumOdd)+')').join(' · ')+'. Não são odds reais nem entradas confirmadas.';block.append(follow);}
+  }
   for(const item of results.offers||[]){
    const card=[...$('quote-board').querySelectorAll('.entry-card')].find(c=>c.dataset.optionId===item.optionId);
    if(!card)continue;
@@ -572,6 +598,11 @@ async function validateCurrentPrice(){
       <div><b>Odd da tua casa:</b> ${toOdd(manual.odd)} · <b>Odd mínima do modelo:</b> ${toOdd(manual.estimatedMinimumOdd)}</div>
       <div><b>Prob. modelo:</b> ${toPct(manual.modelProbability)} · <b>Prob. implícita do mercado:</b> ${toPct(manual.marketImpliedProbability)}</div>
       <div>${manual.reason}</div>`;
+    if(manual.alternativeMarkets?.length&&manual.decision!=='POTENCIAL'){
+      const more=document.createElement('p');
+      more.textContent='Alternativas PARA COTAR: '+manual.alternativeMarkets.map(x=>x.name+' (mínimo '+toOdd(x.minimumOdd)+')').join(' · ')+'. Confirma primeiro as odds reais; não são apostas validadas.';
+      verdict.append(more);
+    }
   } catch (e) {
     statusNote('Não foi possível validar a odd: ' + e.message);
   }
