@@ -9,6 +9,7 @@ import {scanStatFirst,checkStatManual,QUOTE_PROFILES} from './lib/statfirst.mjs'
 import {scanMarketLab,evaluateMultipleRequest,SEARCH_MODES} from './lib/marketlab.mjs';
 import {createMatchContext, buildManualOdd, compareManualOffers, askGeminiAI} from './lib/ai-assistant.mjs';
 import {ESPN_CODES,scanNextHours} from './lib/espn.mjs';
+import {scanSportsDbNextHours} from './lib/sportsdb.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 let env={...process.env};
 try{for(const line of fs.readFileSync(path.join(root,'.env'),'utf8').split(/\r?\n/)){const m=line.match(/^\s*([A-Z_][A-Z_0-9]*)\s*=\s*(.*?)\s*$/);
@@ -32,9 +33,17 @@ let aiBusy=false;
 // Pesquisa isolada: falha do CSV Football-Data não deve impedir o radar.
 async function upcomingRadar(hours=5){
  const response=await scanNextHours(Object.keys(ESPN_CODES),new Date(),hours);
+ let fallback=null;
+ if(response.checkedLeagues===0){
+  try{fallback=await scanSportsDbNextHours(new Date(response.fetchedAt),hours);}catch(e){fallback={matches:[],checkedDays:0,issues:[e.message],source:'TheSportsDB'};}
+ }
  return {
   ...response,windowHours:hours,generatedAt:response.fetchedAt,
-  matches:response.matches.map(f=>({...f,competition:LEAGUES[f.league]?.name||f.league,country:LEAGUES[f.league]?.country||'Outra'})),
+  fallbackDays:fallback?.checkedDays||0,
+  source:fallback?.checkedDays?fallback.source:response.source,
+  warning:fallback?.checkedDays?fallback.warning:response.warning,
+  issues:fallback?.checkedDays?response.issues.concat(fallback.issues||[]):response.issues,
+  matches:(fallback?.checkedDays?fallback.matches:response.matches).map(f=>({...f,competition:LEAGUES[f.league]?.name||f.league,country:LEAGUES[f.league]?.country||'Outra'})),
   coverage:response.checkedLeagues+' de '+response.requestedLeagues+' competições consultadas. Ligas não documentadas (incluindo algumas divisões secundárias sul-americanas) não são inventadas.',
   snapshotModified:null
  };
@@ -81,10 +90,10 @@ export async function handleRequest(req,res){
    try{const result=await askGeminiAI({packet:match.packet,manual,question:body.question,history,searchWeb:body.searchWeb!==false,apiKey:geminiKey,model:aiModel});return send(res,200,{...result,context:match.packet.fixture,manual});}
    finally{aiBusy=false;}
   }
-  if(req.method==='GET'&&url.pathname==='/api/status')return send(res,200,{configured:!!key,leagues:LEAGUES,policy:POLICY,markets:allMarketOptions(),dataSource:'Football-Data + OpenFootball quando disponível',oddsSource:'The Odds API / ficheiro indicativo / manual',date:new Date().toISOString()});
+  if(req.method==='GET'&&url.pathname==='/api/status')return send(res,200,{configured:!!key,leagues:Object.fromEntries(Object.entries(LEAGUES).map(([k,v])=>[k,{...v,espnCode:ESPN_CODES[k]||null}])),policy:POLICY,markets:allMarketOptions(),dataSource:'Football-Data + OpenFootball quando disponível',oddsSource:'The Odds API / ficheiro indicativo / manual',date:new Date().toISOString()});
   if(req.method==='GET'&&url.pathname==='/api/fixtures'&&url.searchParams.get('windowHours')==='5'){
    const radar=await upcomingRadar(5);
-   if(!radar.checkedLeagues)return send(res,502,{error:'A fonte ESPN não respondeu em nenhuma liga. Verifica novamente mais tarde.',details:radar.issues});
+   if(!radar.checkedLeagues&&!radar.fallbackDays)return send(res,502,{error:'Calendários indisponíveis nas fontes ESPN e TheSportsDB.',details:radar.issues});
    return send(res,200,radar);
   }
   if(req.method==='GET'&&url.pathname==='/api/fixtures'){
