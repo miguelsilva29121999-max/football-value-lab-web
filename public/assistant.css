@@ -121,3 +121,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #batch-verdict strong{display:block;font-size:14px;color:#d7f3bb}
 #batch-verdict p{font-size:12px;line-height:1.7}
 #batch-verdict[hidden]{display:none}
+
+/* Radar de calendário de curto prazo */
+.short-radar{padding:22px;margin-bottom:22px;scroll-margin-top:16px}
+.radar-heading{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.radar-heading h2{font-size:25px;margin:8px 0}
+.radar-heading p,.short-summary,.radar-footnote{color:#9cb1c4;font-size:12px;line-height:1.65}
+.radar-heading .ghost-btn{width:auto;min-width:170px;padding:12px 16px}
+.short-games{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:12px;margin-top:16px}
+.short-game{background:#142638;border:1px solid #34546a;border-radius:15px;padding:15px;display:flex;flex-direction:column;gap:14px;justify-content:space-between}
+.short-game>div{display:grid;gap:7px}.short-game small,.short-game span{font-size:11px;color:#abc0d0}
+.short-game strong{font-size:15px;color:#edf4fb}
+.short-open{padding:10px;border:1px solid #55745b;border-radius:10px;color:#deefbd;background:#1b392e;font-weight:800}
+.radar-footnote{grid-column:1/-1;margin:0}
