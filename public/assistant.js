@@ -101,7 +101,7 @@ function resetStage(){
     <div class="stage-empty">
       <div class="stage-orb">✦</div>
       <h2>À espera de um jogo</h2>
-      <p>Quando escolheres uma partida, esta área passa a mostrar o confronto, a entrada principal, as alternativas e o racional do motor.</p>
+      <p>Quando escolheres uma partida, mostraremos mercados para cotar. Só haverá seleção em destaque depois da validação da odd real.</p>
     </div>`;
   const board = $('quote-board');
   board.hidden = true;
@@ -135,7 +135,7 @@ function renderMatchStageFromFixture(){
         <div>
           <div class="top-pick-title">SELEÇÃO PRINCIPAL</div>
           <div class="pick-name">A aguardar modelação</div>
-          <div class="pick-why">Escolhe o jogo e carrega em <b>Gerar entrada principal</b>. O sistema vai procurar uma oportunidade concreta e mostrar também alternativas.</div>
+          <div class="pick-why">Escolhe o jogo para consultar mercados. Só pode haver uma oportunidade depois de comparares a odd real.</div>
           <div class="pick-risk"><b>Risco principal:</b> ainda sem análise gerada.</div>
         </div>
         <div class="pick-stats">
@@ -158,48 +158,47 @@ function buildEntryDescription(candidate, position){
   return base;
 }
 
-function renderPrimaryHero(primary){
-  const stage = $('match-stage');
-  if (!packet || !currentFixture) return;
-  const projected = packet.projectedGoalsFromResults || {};
+
+function renderPrimaryHero(accepted=null, quotesChecked=0){
+  const stage=$('match-stage');
+  if(!packet||!currentFixture)return;
+  const projected=packet.projectedGoalsFromResults||{};
+  const valid=accepted?.decision==='POTENCIAL';
+  const checked=Number(quotesChecked)>0;
+  const heading=valid?'PREÇO EXPERIMENTAL FAVORÁVEL · NÃO VALIDADO':
+    checked?'SEM ENTRADA AOS PREÇOS TESTADOS':'SEM ODD REAL · SEM ENTRADA VALIDADA';
+  const selection=valid?accepted.market:
+    checked?'Nenhuma cotação passou a triagem':'Primeiro o preço. Depois a seleção.';
+  const reason=valid
+    ?'A cotação introduzida passou a triagem do modelo. Probabilidades não calibradas: não é garantia de vantagem ou de acerto.'
+    :checked?'Nenhuma das odds introduzidas justificou uma entrada segundo a triagem. Consulta outras linhas ou escolhe outro jogo.'
+    :'Existem '+(packet.candidateMarkets||[]).length+' mercados estatísticos para consultar mais abaixo. Nenhum deve ser destacado como entrada antes de confirmar a odd real.';
+  const risk=valid?'O modelo ainda não possui calibração preditiva independente; verificar contexto e preço.':
+    checked?'Não forçar uma aposta para obter um sinal verde.':'Odd mínima teórica não equivale a odd disponível na casa.';
+  const metric=(label,value)=>'<div class="stat-card"><div class="label">'+label+'</div><div class="value small">'+value+'</div></div>';
+  const stats=valid
+    ?metric('Odd REAL',toOdd(accepted.odd))+metric('Odd mínima',toOdd(accepted.estimatedMinimumOdd))+
+      metric('Prob. modelo',toPct(accepted.modelProbability))+metric('Cenário baixo',toPct(accepted.scenarioLow))
+    :metric('Preço validado','Nenhum')+metric('Mercados a cotar',String((packet.candidateMarkets||[]).length))+
+      metric('Golos proj.',Number.isFinite(projected.home)&&Number.isFinite(projected.away)
+        ?projected.home.toFixed(2).replace('.',',')+' / '+projected.away.toFixed(2).replace('.',','):'—')+
+      metric('Decisão',checked?'Não entrar':'Por cotar');
   stage.classList.remove('empty');
-  stage.innerHTML = `
-    <div class="section-tag">03 / OPORTUNIDADE DO JOGO</div>
-    <div class="match-overview">
-      <div class="teams-row">
-        <div class="team-block">
-          <div class="team-crest" style="${badgeStyle(packet.fixture.home)}">${badgeLetters(packet.fixture.home)}</div>
-          <div>
-            <div class="team-name">${packet.fixture.home}</div>
-            <div class="team-sub">Casa · ${packet.competition}</div>
-          </div>
-        </div>
-        <div class="vs-chip">${packet.fixture.date} · ${packet.fixture.status.replaceAll('_',' ')}</div>
-        <div class="team-block right">
-          <div>
-            <div class="team-name">${packet.fixture.away}</div>
-            <div class="team-sub">Fora · sem live feed</div>
-          </div>
-          <div class="team-crest" style="${badgeStyle(packet.fixture.away)}">${badgeLetters(packet.fixture.away)}</div>
-        </div>
-      </div>
-      <div class="top-pick">
-        <div>
-          <div class="top-pick-title">HIPÓTESE PRINCIPAL PARA COTAR · PREÇO A CONFIRMAR</div>
-          <div class="pick-name">${primary ? primary.name : 'Sem entrada justificada'}</div>
-          <div class="pick-why">${primary ? buildEntryDescription(primary, 0) : 'O motor não encontrou um mercado suficientemente utilizável com os dados atuais.'}</div>
-          ${primary?.marketReference ? '<div class="pick-why">Cotação de referência indicativa: '+toOdd(primary.marketReference.indicativeOdd)+' (não é odd atual). '+(primary.priceReality?.status==='PRECO_MUITO_INFERIOR'?'Está abaixo do mínimo exigido.':'Confirma na tua casa.')+'</div>' : '<div class="pick-why">Sem cotação externa para este mercado. A odd atual precisa de ser introduzida manualmente.</div>'}
-          <div class="pick-risk"><b>Risco principal:</b> ${primary?.notes?.[0] || 'probabilidades experimentais não calibradas; confirma sempre contexto e odd real.'}</div>
-        </div>
-        <div class="pick-stats">
-          <div class="stat-card"><div class="label">Prob. modelo</div><div class="value">${primary ? toPct(primary.modelProbability) : '—'}</div></div>
-          <div class="stat-card"><div class="label">Cenário baixo</div><div class="value">${primary ? toPct(primary.scenarioLow) : '—'}</div></div>
-          <div class="stat-card"><div class="label">Odd mínima</div><div class="value small">${primary ? toOdd(primary.thresholdOddExperimental) : '—'}</div></div>
-          <div class="stat-card"><div class="label">Golos proj.</div><div class="value small">${Number.isFinite(projected.home)&&Number.isFinite(projected.away) ? `${projected.home.toFixed(2).replace('.',',')} / ${projected.away.toFixed(2).replace('.',',')}` : '—'}</div></div>
-        </div>
-      </div>
-    </div>`;
+  stage.innerHTML=[
+    '<div class="section-tag">03 / VERIFICAR PREÇOS DO JOGO</div>',
+    '<div class="match-overview"><div class="teams-row">',
+      '<div class="team-block"><div class="team-crest" style="'+badgeStyle(packet.fixture.home)+'">'+escapeHtml(badgeLetters(packet.fixture.home))+'</div>',
+        '<div><div class="team-name">'+escapeHtml(packet.fixture.home)+'</div><div class="team-sub">Casa · '+escapeHtml(packet.competition)+'</div></div></div>',
+      '<div class="vs-chip">'+escapeHtml(packet.fixture.date)+' · '+escapeHtml(packet.fixture.status.replaceAll('_',' '))+'</div>',
+      '<div class="team-block right"><div><div class="team-name">'+escapeHtml(packet.fixture.away)+'</div><div class="team-sub">Fora · sem feed live</div></div>',
+        '<div class="team-crest" style="'+badgeStyle(packet.fixture.away)+'">'+escapeHtml(badgeLetters(packet.fixture.away))+'</div></div>',
+    '</div><div class="top-pick quote-status '+(valid?'quoted-good':'unpriced')+'"><div>',
+      '<div class="top-pick-title">'+heading+'</div><div class="pick-name">'+escapeHtml(selection)+'</div>',
+      '<div class="pick-why">'+escapeHtml(reason)+'</div><div class="pick-risk"><b>Atenção:</b> '+escapeHtml(risk)+'</div>',
+    '</div><div class="pick-stats">'+stats+'</div></div></div>'
+  ].join('');
 }
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const isNoKickoff=fixture=>['INICIO_HOJE_NAO_CONFIRMADO','JOGO_JA_PODE_TER_COMECADO'].includes(fixture?.status);
 function renderHistory(data){
@@ -230,9 +229,9 @@ function renderHistory(data){
 }
 function showMarketsToQuote(data){
  const board=$('quote-board');board.replaceChildren();board.hidden=false;
- const arr=(data.candidateMarkets||[]).slice(0,8),locked=isNoKickoff(data.fixture);
+ const arr=(data.candidateMarkets||[]).slice(0,12),locked=isNoKickoff(data.fixture);
  const allKnownQuotesMispriced=arr.length>0&&arr.every(c=>c.priceReality?.status==='PRECO_MUITO_INFERIOR');
- renderPrimaryHero(allKnownQuotesMispriced?null:arr[0]);
+ renderPrimaryHero();
  if(locked){
   const heading=$('match-stage').querySelector('.top-pick-title');
   if(heading)heading.textContent='SELEÇÃO HISTÓRICA · SEM VALIDAÇÃO PRÉ-JOGO';
@@ -240,7 +239,7 @@ function showMarketsToQuote(data){
  const head=document.createElement('div');head.className='board-head';
  const title=document.createElement('div');
  const kicker=document.createElement('div');kicker.className='section-tag';kicker.textContent='MERCADOS SELECIONADOS';
- const h3=document.createElement('h3');h3.textContent=allKnownQuotesMispriced?'Nenhuma referência de preço compatível':arr.length?'Mercados para cotar na tua casa':'Sem mercado fundamentado';
+ const h3=document.createElement('h3');h3.textContent=allKnownQuotesMispriced?'Nenhuma referência de preço compatível':arr.length?'Hipóteses a cotar · não são entradas':'Sem mercado fundamentado';
  const description=document.createElement('p');description.className='board-sub';
  description.textContent=locked?'Os mercados abaixo são apenas históricos: sem hora de início confirmada hoje, não podem ser validados como pré-jogo.':'A odd mínima é o preço exigido pelo modelo, NÃO a odd disponível na casa. Sem cotação real não há aposta identificada.';
  title.append(kicker,h3,description);head.append(title);board.append(head);
@@ -253,8 +252,8 @@ function showMarketsToQuote(data){
  }
  const grid=document.createElement('div');grid.className='entry-grid';
  arr.forEach((candidate,index)=>{
-  const card=document.createElement('article');card.className='entry-card'+(index===0&&!allKnownQuotesMispriced?' main':'');card.dataset.optionId=candidate.id;
-  const kicker=document.createElement('div');kicker.className='entry-kicker';kicker.textContent=index===0&&!allKnownQuotesMispriced?'PRIMEIRA HIPÓTESE · COTAR':allKnownQuotesMispriced?'REFERÊNCIA DESALINHADA · APENAS REVER':'ALTERNATIVA PARA COTAR '+index;
+  const card=document.createElement('article');card.className='entry-card';card.dataset.optionId=candidate.id;
+  const kicker=document.createElement('div');kicker.className='entry-kicker';kicker.textContent=allKnownQuotesMispriced?'REFERÊNCIA DESALINHADA · APENAS REVER':'MERCADO '+(index+1)+' · PREÇO POR VERIFICAR';
   const title=document.createElement('div');title.className='entry-title';title.textContent=candidate.name;
   const explain=document.createElement('div');explain.className='entry-desc';explain.textContent=buildEntryDescription(candidate,index);
   card.append(kicker,title,explain);
@@ -289,12 +288,15 @@ function showMarketsToQuote(data){
    const far=gap>=.15&&gap/odd>=.12;
    priceHint.textContent=gap>0.009?'Odd real '+toOdd(odd)+' inferior ao mínimo '+toOdd(min)+(far?' — DESALINHAMENTO GRANDE. NÃO ENTRAR.':' — não tem valor a este preço.'): 'A odd atinge o mínimo teórico; valida também o risco e a qualidade do modelo.';
    priceHint.classList.toggle('mismatch',gap>0.009);
+   card.style.order=gap>0.009?'2':'0';
   };
   updateHint();
   input.addEventListener('input',()=>{
    updateHint();
    if(input.value.trim())priceDrafts.set(candidate.id,input.value.trim());else priceDrafts.delete(candidate.id);
    const verdict=$('batch-verdict');verdict.hidden=true;verdict.replaceChildren();
+   $('price-verdict').hidden=true;
+   renderPrimaryHero();
    for(const e of grid.querySelectorAll('.entry-decision'))e.remove();
    for(const e of grid.querySelectorAll('.entry-card'))delete e.dataset.decision;
   });
@@ -334,6 +336,7 @@ async function compareQuotedMarkets(){
   const heading=document.createElement('strong');
   heading.textContent=results.bestCandidate?'MELHOR PREÇO EXPERIMENTAL · NÃO VALIDADO':results.bestTheoreticalInReview?'ODD SUPERA MÍNIMO · MODELO EM REVISÃO':'SEM ENTRADA AOS PREÇOS INTRODUZIDOS';
   block.append(heading);
+  renderPrimaryHero(results.bestCandidate||null,results.count);
   if(primary){
    const line=document.createElement('p');
    line.textContent=primary.market+' · Odd da casa '+toOdd(primary.odd)+' · Mínimo do modelo '+toOdd(primary.estimatedMinimumOdd)+' · EV central '+toPct(primary.estimatedEv)+' · Cenário adverso '+toPct(primary.estimatedEvLow)+'.';
@@ -593,6 +596,7 @@ async function validateCurrentPrice(){
     const verdict = $('price-verdict');
     verdict.hidden = false;
     verdict.dataset.decision = manual.decision;
+    renderPrimaryHero(manual.decision==='POTENCIAL'?manual:null,1);
     verdict.innerHTML = `
       <strong>${manual.decision === 'POTENCIAL' ? 'PREÇO POTENCIAL — NÃO VALIDADO' : manual.decision === 'REVER_MODELO' ? 'REVER MODELO — NÃO ENTRAR' : 'OBSERVAR — NÃO ENTRAR'}</strong>
       <div>${manual.market}</div>
