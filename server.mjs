@@ -21,7 +21,7 @@ function secureCodeMatch(input){
  const a=Buffer.from(typeof input==='string'?input:''); const b=Buffer.from(accessCode);
  return a.length===b.length&&timingSafeEqual(a,b);
 }
-const mime={'/':'text/html; charset=utf-8','/index.html':'text/html; charset=utf-8','/style.css':'text/css; charset=utf-8','/app.js':'text/javascript; charset=utf-8','/favicon.svg':'image/svg+xml','/ai':'text/html; charset=utf-8','/assistant.html':'text/html; charset=utf-8','/assistant.css':'text/css; charset=utf-8','/assistant.js':'text/javascript; charset=utf-8'};
+const mime={'/':'text/html; charset=utf-8','/index.html':'text/html; charset=utf-8','/favicon.svg':'image/svg+xml','/ai':'text/html; charset=utf-8','/assistant.html':'text/html; charset=utf-8','/assistant.css':'text/css; charset=utf-8','/assistant.js':'text/javascript; charset=utf-8'};
 const send=(res,code,value)=>{res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(value));};
 async function readJson(req){if(req.body!==undefined){const json=typeof req.body==='string'?req.body:JSON.stringify(req.body);if(json.length>18000)throw Error('Pedido demasiado grande.');return typeof req.body==='string'?JSON.parse(req.body):req.body;}let raw='';for await(const part of req){raw+=part;if(raw.length>18000)throw Error('Pedido demasiado grande.');}try{return JSON.parse(raw);}catch{throw Error('Pedido JSON inválido.');}}
 export function manualOffer(request){if(!request)return null;
@@ -90,7 +90,7 @@ export async function handleRequest(req,res){
    try{const result=await askGeminiAI({packet:match.packet,manual,question:body.question,history,searchWeb:body.searchWeb!==false,apiKey:geminiKey,model:aiModel});return send(res,200,{...result,context:match.packet.fixture,manual});}
    finally{aiBusy=false;}
   }
-  if(req.method==='GET'&&url.pathname==='/api/status')return send(res,200,{configured:!!key,leagues:Object.fromEntries(Object.entries(LEAGUES).map(([k,v])=>[k,{...v,espnCode:ESPN_CODES[k]||null}])),policy:POLICY,markets:allMarketOptions(),dataSource:'Football-Data + OpenFootball quando disponível',oddsSource:'The Odds API / ficheiro indicativo / manual',date:new Date().toISOString()});
+  if(req.method==='GET'&&url.pathname==='/api/status')return send(res,200,{configured:!!key,leagues:Object.fromEntries(Object.entries(LEAGUES).map(([k,v])=>[k,{...v,espnCode:ESPN_CODES[k]||null}])),policy:POLICY,markets:allMarketOptions(),dataSource:'Football-Data + ESPN + TheSportsDB (com cobertura variável)',oddsSource:'The Odds API / ficheiro indicativo / manual',date:new Date().toISOString()});
   if(req.method==='GET'&&url.pathname==='/api/fixtures'&&url.searchParams.get('windowHours')==='5'){
    const radar=await upcomingRadar(5);
    if(!radar.checkedLeagues&&!radar.fallbackDays)return send(res,502,{error:'Calendários indisponíveis nas fontes ESPN e TheSportsDB.',details:radar.issues});
@@ -139,7 +139,7 @@ export async function handleRequest(req,res){
    if(!LEAGUES[league]||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(f.date||'')||!f.home||!f.away||String(f.home).length>100||String(f.away).length>100)throw Error('Jogo inválido.');
    const offer=manualOffer(body.manual);return send(res,200,await analyzeFixture(league,f,{manualOffers:offer?[offer]:[],oddsKey:key,extended:body.extended===true&&!offer,mode:body.mode==='conservative'?'conservative':'balanced'}));
   }
-  const staticFiles={'/':'assistant.html','/index.html':'assistant.html','/style.css':'style.css','/app.js':'app.js','/favicon.svg':'favicon.svg','/ai':'assistant.html','/assistant.html':'assistant.html','/assistant.js':'assistant.js','/assistant.css':'assistant.css'};
+  const staticFiles={'/':'assistant.html','/index.html':'assistant.html','/favicon.svg':'favicon.svg','/ai':'assistant.html','/assistant.html':'assistant.html','/assistant.js':'assistant.js','/assistant.css':'assistant.css'};
   if(req.method==='GET'&&Object.hasOwn(staticFiles,url.pathname)){res.writeHead(200,{'content-type':mime[url.pathname], 'cache-control':'no-cache','x-content-type-options':'nosniff'});
    fs.createReadStream(path.join(root,'public',staticFiles[url.pathname])).pipe(res);return;}
   return send(res,404,{error:'Rota não encontrada.'});
