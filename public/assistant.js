@@ -329,6 +329,45 @@ async function compareQuotedMarkets(){
  }catch(error){statusNote('Não foi possível comparar as odds: '+error.message);}
 }
 
+
+async function refreshShortRadar(){
+ const root=$('short-games'),summary=$('short-summary'),btn=$('short-refresh');
+ btn.disabled=true;summary.textContent='A consultar calendários disponíveis…';root.replaceChildren();
+ try{
+  const result=await fetchJSON('/api/fixtures?windowHours=5');
+  const matches=result.matches||[];
+  summary.textContent=matches.length
+    ? matches.length+' jogos nas próximas 5 horas · '+result.source+' · horários indicativos, não confirmados em direto.'
+    : 'Nenhum jogo com hora indicada nas próximas 5 horas nas ligas atualmente cobertas. Isto não significa que não haja jogos noutros países.';
+  for(const match of matches){
+   const card=document.createElement('article');card.className='short-game';
+   const info=document.createElement('div');
+   const league=document.createElement('small');league.textContent=match.country+' · '+match.competition;
+   const name=document.createElement('strong');name.textContent=match.home+' — '+match.away;
+   const time=document.createElement('span');time.textContent=new Date(match.kickoffUtc).toLocaleString('pt-PT',{timeZone:'Europe/Lisbon',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' (Portugal) · indicativo';
+   info.append(league,name,time);
+   const action=document.createElement('button');action.type='button';action.className='short-open';action.textContent='Analisar jogo ↗';
+   action.addEventListener('click',async()=>{
+    action.disabled=true;
+    try{
+     $('league').value=match.league;
+     await loadFixtures();
+     const found=fixtures.find(f=>f.id===match.id);
+     if(!found){statusNote('Este jogo já não consta no calendário da liga. Atualiza a lista.');return;}
+     $('filter').value='';showFixture();$('fixture').value=found.id;selectedFixture();
+     document.querySelector('.layout-grid')?.scrollIntoView({behavior:'smooth'});
+     await preview();
+    }finally{action.disabled=false;}
+   });
+   card.append(info,action);root.append(card);
+  }
+  const note=document.createElement('p');note.className='radar-footnote';
+  note.textContent=result.warning+' '+result.coverage;root.append(note);
+ }catch(e){summary.textContent='Não foi possível atualizar o radar: '+e.message;}
+ finally{btn.disabled=false;}
+}
+$('short-refresh').addEventListener('click',refreshShortRadar);
+
 function addMessage(role, text, links = []){
   const empty = $('chat').querySelector('.empty-chat');
   if (empty) empty.remove();
@@ -558,6 +597,7 @@ $('followup').addEventListener('submit', e => {
       select.value='P1';
       await loadFixtures();
     }
+    refreshShortRadar();
   }catch(e){
     const select=$('league');
     select.replaceChildren();
