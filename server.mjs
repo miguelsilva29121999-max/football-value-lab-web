@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {LEAGUES,POLICY,allMarketOptions} from './lib/model.mjs';
-import {loadLeague,scanLeagues,analyzeFixture,oddsSports} from './lib/providers.mjs';
+import {loadLeague,loadFixturesSnapshot,toDate,scanLeagues,analyzeFixture,oddsSports} from './lib/providers.mjs';
 import {scanStatFirst,checkStatManual,QUOTE_PROFILES} from './lib/statfirst.mjs';
 import {scanMarketLab,evaluateMultipleRequest,SEARCH_MODES} from './lib/marketlab.mjs';
 import {createMatchContext, buildManualOdd, compareManualOffers, askGeminiAI} from './lib/ai-assistant.mjs';
@@ -27,6 +27,33 @@ export function manualOffer(request){if(!request)return null;
  if(!option)throw Error('Mercado manual inválido.');if(!Number.isFinite(price)||price<=1.01||price>60)throw Error('Odd manual inválida.');
  return {...option,price};}
 let aiBusy=false;
+
+/* Radar de curto prazo: horários publicados pelo fornecedor, indicativos.
+   Football-Data usa horas de calendário britânicas; não são um feed live. */
+function londonKickoffUtc(date,time){
+ const m=/^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(String(time||'').trim());
+ if(!/^\d{4}-\d\d-\d\d$/.test(date||'')||!m||+m[1]>23||+m[2]>59)return null;
+ const noon=new Date(date+'T12:00:00Z');
+ const tz=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',timeZoneName:'shortOffset',hour:'2-digit'}).formatToParts(noon).find(p=>p.type==='timeZoneName')?.value||'GMT';
+ const offset=Number(/GMT\+(\d+)/.exec(tz)?.[1]||0);
+ const stamp=Date.UTC(+date.slice(0,4),+date.slice(5,7)-1,+date.slice(8,10),+m[1]-offset,+m[2]);
+ return new Date(stamp).toISOString();
+}
+async function upcomingRadar(hours=5){
+ const snapshot=await loadFixturesSnapshot(),now=Date.now(),until=now+hours*3600e3,items=new Map(),unconfirmed=new Set();
+ for(const row of snapshot.rows){
+  const league=String(row.Div||'').trim(),date=toDate(row.Date);
+  if(!LEAGUES[league]||!date||!row.HomeTeam||!row.AwayTeam)continue;
+  const kickoff=londonKickoffUtc(date,row.Time);
+  if(!kickoff){unconfirmed.add(league);continue;}
+  const t=Date.parse(kickoff);
+  if(t<now||t>until)continue;
+  const id=[league,date,encodeURIComponent(row.HomeTeam),encodeURIComponent(row.AwayTeam)].join('|');
+  items.set(id,{id,league,country:LEAGUES[league].country,competition:LEAGUES[league].name,date,home:row.HomeTeam,away:row.AwayTeam,kickoffUtc:kickoff,time:row.Time,source:'Football-Data',timeStatus:'INDICATIVO_NAO_CONFIRMADO'});
+ }
+ return {windowHours:hours,generatedAt:new Date(now).toISOString(),matches:[...items.values()].sort((a,b)=>a.kickoffUtc.localeCompare(b.kickoffUtc)),unconfirmedLeagues:[...unconfirmed],source:'Football-Data fixtures.csv',snapshotModified:snapshot.modified,coverage:'Apenas competições publicadas no snapshot e configuradas neste projeto. América do Sul ainda não integrada.',warning:'Hora de início indicativa no fuso Europe/London. Não é verificação live nem prova de que o jogo não começou.'};
+}
+
 export async function handleRequest(req,res){
  const url=new URL(req.url||'/',`http://localhost:${PORT}`);
  try{
@@ -69,6 +96,7 @@ export async function handleRequest(req,res){
    finally{aiBusy=false;}
   }
   if(req.method==='GET'&&url.pathname==='/api/status')return send(res,200,{configured:!!key,leagues:LEAGUES,policy:POLICY,markets:allMarketOptions(),dataSource:'Football-Data + OpenFootball quando disponível',oddsSource:'The Odds API / ficheiro indicativo / manual',date:new Date().toISOString()});
+  if(req.method==='GET'&&url.pathname==='/api/fixtures'&&url.searchParams.get('windowHours')==='5')return send(res,200,await upcomingRadar(5));
   if(req.method==='GET'&&url.pathname==='/api/fixtures'){
    const league=url.searchParams.get('league')||'E0';const data=await loadLeague(league);
    return send(res,200,{league,fixtures:data.fixtures,historySize:data.historicalGames,sources:data.source,issues:data.issues,snapshotModified:data.snapshot?.modified||null});
